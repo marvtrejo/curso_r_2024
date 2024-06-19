@@ -89,29 +89,80 @@ alcaldias <-
 plot(alcaldias, max.plot=1)
 ```
 
-Hacemos el mapa en ggplot de alcaldías y municipios:
+### 2.1 Mapa en ggplot de alcaldías y municipios
 
-alcaldias %\>% ggplot() + geom_sf() + geom_sf(data = delitos_2019_shp, alpha = 0.01)
+```{r}
+alcaldias %>% 
+  ggplot() +
+  geom_sf() +
+  geom_sf(data=delitos_2019_shp, 
+          alpha=0.01, 
+          color="red") +
+  labs(title="Ubicación de los delitos en la Ciudad de México") +
+  theme_bw() +
+  theme(axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        panel.grid=element_blank(),
+        panel.border=element_blank(),
+        plot.title=element_text(family = "Arial", 
+                                face="bold",
+                                hjust=0.5, 
+                                size=20))
 
-Lo tuneamos:
+delitos_2019_shp <- delitos_2019_shp %>% 
+  mutate(x=st_coordinates(delitos_2019_shp)[,1],
+         y=st_coordinates(delitos_2019_shp)[,2])
 
-alcaldias %\>% ggplot() + geom_sf() + geom_sf(data = delitos_2019_shp, alpha = 0.01, color = "red") + labs(title = "Distribución de la ubicación de los\ndelitos en la Ciudad de México") + theme_bw() + theme(axis.text = element_blank(), axis.ticks = element_blank(), panel.grid = element_blank(), panel.border = element_blank(), plot.title = element_text(family = "Arial", face = "bold", hjust = 0.5, size = 20))
+# Mapa más tuneado
+ggplot(delitos_2019_shp) + 
+  geom_sf(data = alcaldias, 
+          fill = "beige", 
+          linetype = 2) + 
+  stat_density_2d(aes(fill = after_stat(level), 
+                      x=x, 
+                      y=y), 
+                  geom = "polygon", 
+                  colour="white") + 
+  scale_fill_gradientn(colors = wesanderson::wes_palettes$Zissou1) + 
+  labs(title = "Ubicación de los delitos en la Ciudad de México", 
+       x = NULL, 
+       y = NULL, 
+       fill = "Nivel de delitos") + 
+  theme_bw() + 
+  theme(axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        panel.grid = element_blank(), 
+        panel.border = element_blank(), 
+        legend.position = "bottom", 
+        plot.title = element_text(family = "Arial", 
+                                  face = "bold", 
+                                  hjust = 0.5, 
+                                  size = 20, 
+                                  color = "navyblue")) + 
+  guides(fill = guide_colorbar(barwidth = 20, 
+                               barheight = 0.5, 
+                               title.position = "top", 
+                               title.hjust = 0.5))
+```
 
-delitos_2019_shp \<- delitos_2019_shp %\>% mutate(x = st_coordinates(delitos_2019_shp)[,1], y = st_coordinates(delitos_2019_shp)[,2])
+### 2.2 Mapa de delitos para la Cuauhtémoc
 
-Más tuneo:
+```{r}
+delitos_cuautemoc <- delitos_2019_shp %>% 
+  filter(!(AlcaldiaHechos %in% c("CUAUHTEMOC", "IZTAPALAPA")))
 
-ggplot(delitos_2019_shp) + geom_sf(data = alcaldias, fill = "beige", linetype = 2) + stat_density_2d(aes(fill = ..level.., x=x, y=y), geom = "polygon", colour="white") + scale_fill_gradientn(colors = wesanderson::wes_palettes\$Zissou1) + labs(title = "Distribución de la ubicación de los\ndelitos en la Ciudad de México", x = NULL, y = NULL, fill = "Nivel de delitos") + theme_bw() + theme(axis.text = element_blank(), axis.ticks = element_blank(), panel.grid = element_blank(), panel.border = element_blank(), legend.position = "bottom", plot.title = element_text(family = "Arial", face = "bold", hjust = 0.5, size = 20, color = "navyblue")) + guides(fill = guide_colorbar(barwidth = 20, barheight = 0.5, title.position = "top", title.hjust = 0.5))
+alcaldias %>% 
+  filter(!(Name %in% c("Cuauhtémoc", "Iztapalapa"))) %>% 
+  ggplot() + 
+  geom_sf() + 
+  geom_sf(data = delitos_cuautemoc, 
+          alpha = 0.01, 
+          color = "red")
+```
 
-Mapa de delitos para la Cuauhtémoc
+## 3. Mapa de municipios
 
-delitos_cuautemoc \<- delitos_2019_shp %\>% filter(!(AlcaldiaHechos %in% c("CUAUHTEMOC", "IZTAPALAPA")))
-
-alcaldias %\>% filter(!(Name %in% c("Cuauhtémoc", "Iztapalapa"))) %\>% ggplot() + geom_sf() + geom_sf(data = delitos_cuautemoc, alpha = 0.01, color = "red")
-
-Municipios
-
-3.  Cargue los datos de “municipios_2022_simplificado.rds”. ¿Qué información encuentra? ----
+Cargue los datos de “municipios_2022_simplificado.rds”. ¿Qué información encuentra? ----
 
 mun \<- readRDS("01_datos/municipios_2022_simplificado.rds") \# Esta linea de código no funcionará si no cargaste antes la librería sf plot(mun, max.plot = 1) \# Se encuentra información de los municipios de mexico.
 
