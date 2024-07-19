@@ -45,9 +45,53 @@ concentrado2020<-concentrado2020 %>%
 
 # Mapas
 
+## Nociones básicas
+
+La información geográfica se caracteriza por tener dos elementos: ubicación y atributo
+
++---------------------+------------------------+
+| Ubicación           | Atributo               |
++:===================:+:======================:+
+| Puntos              | Nombres de calles      |
+|                     |                        |
+| Líneas              | Estadísticas del lugar |
+|                     |                        |
+| Polígonos           | Precios                |
+|                     |                        |
+| Áreas               | Población              |
+|                     |                        |
+| Matrices de pixeles | Índices                |
++---------------------+------------------------+
+
+Este tipo de información se puede almacenar en archivos de distintos tipos:
+
+-   **Shapefile:** se compone de 5 archivos diferentes, por lo general se utiliza en ArcGIS y QGis.
+
+-   **GeoJSON:** popular entre usuarios de R y Python. Se caracteriza por ser ligero y accesible desde la web.
+
+-   **Excel (.csv, .xlsx):** puede almacenar coordenadas de puntos o ubicaciones.
+
+-   **Imagen (.tiff, .geotiff):** imagen grande y georeferenciada,utilizada para almacenar bases de datos Raster e imágenes satelitales.
+
+Un **CRS** o **Sistema de Coordenadas de Referencia** se utiliza para localizar las entidades geográficas. Debe incluir:
+
+1.  Una proyección geográfica.
+
+2.  Un punto de referencia.
+
+3.  Un sistema de traducción a otro CRS.
+
+4.  Un datum o elipsoide de referencia.
+
+Para los ejercicios de esta guía se utilizará el **crs 4326 (WGS84 proyección lat/long)** por ser el más común y utilizado por default en las librerías `leaflet` y `google maps`
+
 Librerías utilizadas:
 
--   `sf`:
+-   `sf`: permite almacenar los objetos espaciales como data frame, con una columna que contiene la información de coordenadas geométricas.
+
+    -   `sf:st_crs()`: Indica el sistema de coordenadas de referencia del objeto *sf*
+
+    -   `sf::st_transform()`: Permite transformar el sistema de coordenadas de referencia
 
 -   `readxl`:
 
@@ -58,21 +102,30 @@ Además, cargamos el archivo geojson que es un archivo de texto plano y se puede
 ```{r}
 pacman::p_load(tidyverse, readxl, sf)
 
+# La función st_read lee un archivo o base de datos vectorial como un objeto sf. Admite URL
 estados <- 
   st_read("https://raw.githubusercontent.com/JuveCampos/Shapes_Resiliencia_CDMX_CIDE/master/geojsons/Division%20Politica/DivisionEstatal.geojson")
 
+# Con esta función se hace un mapa exploratorio de las geometrías que contiene el objeto sf. Imprime entre 8 y 9 mapas de las primeras variables.
 plot(estados)
+
+# Se puede limitar el número de mapas con el argumento max.plot
+plot(estados, max.plot=2)
 ```
 
-## 1. Convertir mapa en objeto *sf*
+## Sesión 01
+
+### Ejercicio 1. Convertir mapa en objeto *sf*
 
 ```{r}
+# Primero cargamos la base de datos Delitos 2019
 delitos_2019 <- 
   read_xlsx("C:/Users/mitrejo/Mi unidad/SPPC/Github/curso_r_datos_coneval_2024/01_Sesiones/Sesión 06. Introducción a los datos espaciales/01_Datos/delitos_2019.xlsx")
 
+# El archivo es de excel, por lo que se carga como un data frame
 class(delitos_2019)
 
-#Para convertir en clase sf
+# Con la función st_as_sf podemos convertir un data frame en un objeto sf
 delitos_2019_shp <- 
   delitos_2019 %>% 
   st_as_sf(coords = c("longitud", "latitud"), crs = 4326) 
@@ -80,18 +133,21 @@ delitos_2019_shp <-
 plot(delitos_2019_shp, max.plot = 1)
 ```
 
-## 2. Cargar polígonos de las alcaldías (`ARCHIVO.kml`).
+### Ejercicio 2. Cargar polígonos de las alcaldías (`ARCHIVO.kml`).
 
 ```{r}
 alcaldias <-
   read_sf("~/GitHub/Sesión 06. Introducción a los datos espaciales/01_Datos/alcaldias.kml")
 
-plot(alcaldias, max.plot=1)
+plot(alcaldias)
+#En este caso, el objeto sf tiene dos atributos: nombre y descripción
 ```
 
-### 2.1 Mapa en ggplot de alcaldías y municipios
+#### 2.1 Mapa en ggplot de alcaldías y municipios
 
 ```{r}
+# La función geom_sf() añade la capa del elemento geométrico en una gráfica ggplot. Es similar a geom_histogram(), geom_point() o geom_line().
+
 alcaldias %>% 
   ggplot() +
   geom_sf() +
@@ -113,7 +169,7 @@ delitos_2019_shp <- delitos_2019_shp %>%
   mutate(x=st_coordinates(delitos_2019_shp)[,1],
          y=st_coordinates(delitos_2019_shp)[,2])
 
-# Mapa más tuneado
+# Agregando más elementos al mapa
 ggplot(delitos_2019_shp) + 
   geom_sf(data = alcaldias, 
           fill = "beige", 
@@ -145,11 +201,15 @@ ggplot(delitos_2019_shp) +
                                title.hjust = 0.5))
 ```
 
-### 2.2 Mapa de delitos para la Cuauhtémoc
+#### 2.2 Mapa de delitos para la Cuauhtémoc
 
 ```{r}
+# Con la función filter, podemos crear un subconjunto de datos a partir de un dataframe. En este caso seleccionamos el subconjunto que contiene los delitos ocurridos en las alcaldías Cuauhtemoc e Iztapala.
+
 delitos_cuautemoc <- delitos_2019_shp %>% 
   filter(!(AlcaldiaHechos %in% c("CUAUHTEMOC", "IZTAPALAPA")))
+
+# También podemos aplicar la función filter al momento de hacer un mapa. En este ejemplo se excluye del mapa las alcaldías Cuauhtémoc e Iztapalapa
 
 alcaldias %>% 
   filter(!(Name %in% c("Cuauhtémoc", "Iztapalapa"))) %>% 
@@ -160,52 +220,265 @@ alcaldias %>%
           color = "red")
 ```
 
-## 3. Mapa de municipios
+### Ejercicio 3. Mapa de municipios
 
-Cargue los datos de “municipios_2022_simplificado.rds”. ¿Qué información encuentra? ----
+```{r}
+# Cargamos la base de datos de municipios en México
+mun <- readRDS("~/GitHub/Sesión 06. Introducción a los datos espaciales/01_Datos/municipios_2022_simplificado.rds")
 
-mun \<- readRDS("01_datos/municipios_2022_simplificado.rds") \# Esta linea de código no funcionará si no cargaste antes la librería sf plot(mun, max.plot = 1) \# Se encuentra información de los municipios de mexico.
+plot(mun) 
+```
 
-4.  Cargue los datos del archivo “prec_9_extrema.tif” sobre precipitación extrema en territorio mexicano. ¿Qué tipo de información es? Grafique. ----
+### Ejercicio 4. Mapa de precipitaciones
 
-Cargamos la librería raster:
+Para este ejercicio utilizaremos la librería `raster` que nos permite manipular información geográfica en formato *raster*. Este formato divide el espacio en celdas (rectángulos o pixeles) del mismo tamaño en unidades CRS.
 
+```{r}
+# Cargamos la librería y el archivo raster
 library(raster)
 
-Cargar el archivo raster
+raster_file<-raster("~/GitHub/Sesión 06. Introducción a los datos espaciales/01_Datos/prec_9_extrema.tif") 
 
-raster_file \<- raster("01_datos/prec_9_extrema.tif") raster_df \<- as.data.frame(raster_file, xy = TRUE)
+raster_df<-as.data.frame(raster_file,xy=TRUE)
 
-Renombrar la columna con los valores del raster
+colnames(raster_df)[3]<-"valor"
 
-colnames(raster_df)[3] \<- "value"
+# Creamos el mapa
+ggplot() + 
+  geom_raster(data = raster_df, aes(x = x, y = y, fill = valor)) +
+  scale_fill_viridis_c() + 
+  coord_fixed() + 
+  labs(title = "Mapa Raster", 
+       x = "Longitud", 
+       y = "Latitud", 
+       fill = "Valor") + 
+  theme_minimal()
+```
 
-Crear el mapa con ggplot2
+### Ejercicio 5. Exportar archivo `geojson`
 
-ggplot() + geom_raster(data = raster_df, aes(x = x, y = y, fill = value)) + scale_fill_viridis_c() + \# Puedes cambiar la escala de colores según tus preferencias coord_fixed() + labs(title = "Mapa Raster", x = "Longitud", y = "Latitud", fill = "Valor") + theme_minimal()
+```{r}
+# Filtramos los datos de los delitos para la alcaldía Cuauhtémoc
+delitos_cuautemoc <- delitos_2019_shp %>% 
+  filter(AlcaldiaHechos == "CUAUHTEMOC") 
 
-5.  Exporte solo los delitos pertenecientes a la alcaldía Cuauhtémoc a un archivo llamado “delitos_cuauhtemoc.geojson”. ----
-
-delitos_cuautemoc \<- delitos_2019_shp %\>% filter(AlcaldiaHechos == "CUAUHTEMOC") \# Filtramos los datos de los delitos para la alcaldía Cuauhtémoc
-
-Guardamos los datos en un archivo geojson
-
+# Para guardar los datos en un archivo geojson utilizamos la función st_write
 st_write(delitos_cuautemoc, "delitos_cuauhtemoc.geojson")
+```
 
-6.  Cargue el archivo de “Índice de Desarrollo Humano.csv” y replique en ggplot el siguiente mapa (sin el post-it). ----
+### Ejercicio 6. Mapa del Índice de Desarrollo Humano (IDH)
 
-Mapa del IDH
+```{r}
+idh <- read_csv("~/GitHub/Sesión 06. Introducción a los datos espaciales/01_Datos/Indice de Desarrollo Humano.csv") %>%
+  filter(Year==max(Year))
 
-idh \<- read_csv("01_datos/Indice de Desarrollo Humano.csv") %\>% filter(Year == max(Year))
+# Unimos los datos del índice con la base de municipios que contiene la información espacial. CVEGEO y CODGEO son las variables llave que utilizamos para la unión.
 
-Hacemos la unión de los datos:
+left_join(mun, idh, by = c("CVEGEO" = "CODGEO")) 
 
-left_join(mun, idh, by = c("CVEGEO" = "CODGEO")) \# Con left_join
+mapx <- merge(mun, idh, by.x = "CVEGEO", by.y = "CODGEO")
 
-mapx \<- merge(mun, idh, by.x = "CVEGEO", by.y = "CODGEO")
+# Mapa del IDH para el estado de Morelos:
+mapx %>% filter(Entidad == "Morelos") %>% 
+  ggplot(aes(fill = Valor)) + 
+  geom_sf() + 
+  scale_fill_gradientn(colors = wesanderson::wes_palettes$Zissou1) + 
+  labs(title = "Índice de Desarrollo Humano", 
+       subtitle = "Año: 2015", 
+       caption = "Fuente: Informe de Desarrollo Humano Municipal 2010-2015\nElaborado por: Marvin Ivan Trejo Mendez") + 
+  theme_void() + 
+  theme(axis.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5, 
+                                  face="bold"), 
+        plot.subtitle = element_text(hjust = 0.5, 
+                                     color="darkgrey", 
+                                     face="bold"),
+        plot.caption = element_text(size=8, 
+                                    color="darkgrey", 
+                                    face="bold"),
+        legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10, 
+                               barheight = 0.5, 
+                               title.position = "top", 
+                               title.hjust = 0.5))
+```
 
-Mapa del IDH para el estado de Morelos:
+## Sesión 02
 
-¿Qué mas le falta para replicar el del ejercicio?
+```{r}
+setwd("C:/Users/mitrejo/Mi unidad/SPPC/Github/curso_r_datos_coneval_2024/01_Sesiones")
+# Librerias:
+pacman::p_load(sf, tidyverse, viridis, wesanderson, ghibli, ggthemes, scales, ggimage)
+```
 
-mapx %\>% filter(Entidad == "Morelos") %\>% ggplot(aes(fill = Valor)) + geom_sf() + scale_fill_gradientn( colors = \# c("red", "yellow", "green", "blue") wesanderson::wes_palettes\$Zissou1 \# RColorBrewer::brewer.pal(name = "YlOrRd", n = 6) ) + labs(title = "Índice de Desarrollo Humano", subtitle = "Año = 2015") + theme_bw() + theme(axis.text = element_blank(), plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+### Ejercicio 1. Mapa de participación electoral a nivel municipal
+
+```{r}
+# Polígono de los estados: 
+shp_ent <- st_read("https://raw.githubusercontent.com/JuveCampos/Shapes_Resiliencia_CDMX_CIDE/master/geojsons/Division%20Politica/DivisionEstatal.geojson")
+
+# Datos del PREP: 
+prep <- read_csv("prep_municipal.csv")  %>% 
+  mutate(CVE_INEGI = str_pad(CVE_INEGI, 
+                             width = 5, 
+                             side = "left", 
+                             pad = "0"))
+
+shp <- st_read("municipios_2022.geojson")  %>% 
+  mutate(CVEGEO = str_pad(CVEGEO, 
+                          width = 5, 
+                          side = "left", 
+                          pad = "0"))
+
+# Unimos los datos del PREP y los polígonos de los estados
+mapx <- left_join(shp,prep, by = c("CVEGEO" = "CVE_INEGI"))
+
+# Para el mapa 
+plt <- mapx %>%
+  ggplot(aes(fill = porcentaje_participacion)) + 
+  geom_sf(color = "transparent") + 
+  geom_sf(data = shp_ent, fill = NA, linewidth = 0.5) + 
+    scale_fill_gradientn(colors = wesanderson::wes_palettes$Zissou1, 
+                       breaks = seq(0, 100, 20), 
+                       labels = comma_format(suffix = "%")) + 
+  scale_x_continuous(expand = expansion(c(0.2, 0.2))) + 
+  labs(title = "Mapa de participación a nivel municipal", 
+       subtitle = "Elecciones 2024 para presidencia", 
+       caption = "\n\n\nFuente: Elaboración propia con datos del PREP, 2024", 
+       fill = "Porcentaje de participación: ") + 
+  theme_minimal() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(size = 30, face = "bold", 
+                                  family = "Arial", 
+                                  color = "olivedrab"), 
+        plot.subtitle = element_text(size = 25), 
+        plot.caption = element_text(size = 15, hjust = 0, color = "white"), 
+        legend.title = element_text(size = 20), 
+        legend.text = element_text(size = 18), 
+        axis.text = element_blank(), 
+        panel.grid = element_blank(), 
+        plot.margin = margin(t = 3.5, 
+                             r = 0, 
+                             b = 0.8, 
+                             l = 0, 
+                             unit = "cm")) + 
+  guides(fill = guide_colorbar(title.position = "top", 
+                               barwidth = 40, 
+                               barheight = 1, 
+                               title.hjust = 0.5))
+
+# 2. Utilizando la plantilla de mapas coneval (plantilla.pdf), dele una imagen institucional al mapa de (1). ----
+plt2 <- ggimage::ggbackground(plt, "plantilla.pdf")
+ggsave("02_Graficas/01_mapa_participacion.png", 
+       height = 10, 
+       width = 12)
+
+
+
+
+```
+
+### Ejercicio 2.
+
+```{r}
+# Realice un nuevo mapa, ahora para la candidata ganadora o para la coalición ganadora.
+
+unique(mapx$coalicion_ganadora)
+
+plt <- mapx %>%
+  ggplot(aes(fill = coalicion_ganadora)) + 
+  geom_sf(color = "transparent") + 
+  geom_sf(data = shp_ent, fill = NA, linewidth = 0.5) + 
+  scale_fill_manual(values = c("FyCXM" = "#040b6e", 
+                               "SHH" = "#691205", 
+                               "MC" = "orange")) + 
+  scale_x_continuous(expand = expansion(c(0.2, 0.2))) + 
+  labs(title = "Mapa de coalición ganadora", 
+       subtitle = "Elecciones 2024 para presidencia", 
+       caption = "\n\n\nFuente: Elaboración propia con datos del PREP, 2024", 
+       fill = "Coalición: ") + 
+  theme_minimal() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(size = 30, face = "bold", 
+                                  family = "Arial", 
+                                  color = "olivedrab"), 
+        plot.subtitle = element_text(size = 25), 
+        plot.caption = element_text(size = 15, hjust = 0, color = "white"), 
+        legend.title = element_text(size = 20), 
+        legend.text = element_text(size = 18), 
+        axis.text = element_blank(), 
+        panel.grid = element_blank(), 
+        plot.margin = margin(t = 3.5, 
+                             r = 0, 
+                             b = 0.8, 
+                             l = 0, 
+                             unit = "cm")) + 
+  guides(fill = guide_legend(title.position = "top", 
+                               title.hjust = 0.5))
+
+# plt
+
+# Utilizando la plantilla de mapas coneval (plantilla.pdf), dele una imagen institucional al mapa de (1).
+plt2 <- ggimage::ggbackground(plt, "00_Datos/plantilla.pdf")
+ggsave("02_Graficas/02_mapa_coalicion_ganadora.png", 
+       height = 10, 
+       width = 12)
+```
+
+### Ejercicio 3.
+
+```{r}
+# Mapa 03 ####
+
+# Esta es para sacar los grupos: 
+quantile(mapx$porcentaje_participacion, c(0.33, 0.66, 1), na.rm = T)
+
+plt <- mapx %>%
+  mutate(grupo_participacion = case_when(
+    porcentaje_participacion < 58.55 ~ "Baja participación", 
+    between(porcentaje_participacion, 58.55, 67.81) ~ "Media participacion", 
+    porcentaje_participacion > 67.81 ~ "Alta participación"
+    )) %>%
+  ggplot(aes(fill = grupo_participacion)) + 
+  geom_sf(color = "transparent") + 
+  geom_sf(data = shp_ent, fill = NA, linewidth = 0.5) + 
+  scale_fill_manual(values = c("Baja participación" = "gray90", 
+                               "Media participacion" = "gray50", 
+                               "Alta participación" = "black")) + 
+  # scale_fill_gradientn(colors = wesanderson::wes_palettes$Zissou1, 
+  #                      breaks = seq(0, 100, 20), 
+  #                      labels = comma_format(suffix = "%")
+  # ) + 
+  scale_x_continuous(expand = expansion(c(0.2, 0.2))) + 
+  labs(title = "Mapa de municipios por grupo de participación", 
+       subtitle = "Elecciones 2024 para presidencia", 
+       caption = "\n\n\nFuente: Elaboración propia con datos del PREP, 2024", 
+       fill = "Grupo: ") + 
+  theme_minimal() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(size = 30, face = "bold", 
+                                  family = "Arial", 
+                                  color = "olivedrab"), 
+        plot.subtitle = element_text(size = 25), 
+        plot.caption = element_text(size = 15, hjust = 0, color = "white"), 
+        legend.title = element_text(size = 20), 
+        legend.text = element_text(size = 18), 
+        axis.text = element_blank(), 
+        panel.grid = element_blank(), 
+        plot.margin = margin(t = 3.5, 
+                             r = 0, 
+                             b = 0.8, 
+                             l = 0, 
+                             unit = "cm")) + 
+  guides(fill = guide_legend(title.position = "top", 
+                               title.hjust = 0.5))
+
+# plt
+
+# 4. Utilizando la plantilla de mapas coneval (plantilla.pdf), dele una imagen institucional al mapa de (1). ----
+
+plt2 <- ggimage::ggbackground(plt, "00_Datos/plantilla.pdf")
+ggsave("02_Graficas/03_mapa_grupos_participacion.png", 
+       height = 10, 
+       width = 12)
+```
