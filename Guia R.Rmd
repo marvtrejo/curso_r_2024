@@ -366,15 +366,13 @@ plt <- mapx %>%
                                barwidth = 40, 
                                barheight = 1, 
                                title.hjust = 0.5))
-
 # 2. Utilizando la plantilla de mapas coneval (plantilla.pdf), dele una imagen institucional al mapa de (1). ----
 plt2 <- ggimage::ggbackground(plt, "plantilla.pdf")
 ggsave("02_Graficas/01_mapa_participacion.png", 
        height = 10, 
        width = 12)
 
-
-
+plt2
 
 ```
 
