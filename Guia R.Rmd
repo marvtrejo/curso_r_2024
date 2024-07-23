@@ -113,14 +113,14 @@ plot(estados)
 plot(estados, max.plot=2)
 ```
 
-## Sesión 01
+## Sesión 06
 
 ### Ejercicio 1. Convertir mapa en objeto *sf*
 
 ```{r}
 # Primero cargamos la base de datos Delitos 2019
 delitos_2019 <- 
-  read_xlsx("C:/Users/mitrejo/Mi unidad/SPPC/Github/curso_r_datos_coneval_2024/01_Sesiones/Sesión 06. Introducción a los datos espaciales/01_Datos/delitos_2019.xlsx")
+  read_xlsx("Datos/S06/delitos_2019.xlsx")
 
 # El archivo es de excel, por lo que se carga como un data frame
 class(delitos_2019)
@@ -137,7 +137,7 @@ plot(delitos_2019_shp, max.plot = 1)
 
 ```{r}
 alcaldias <-
-  read_sf("~/GitHub/Sesión 06. Introducción a los datos espaciales/01_Datos/alcaldias.kml")
+  read_sf("Datos/S06/alcaldias.kml")
 
 plot(alcaldias)
 #En este caso, el objeto sf tiene dos atributos: nombre y descripción
@@ -224,7 +224,7 @@ alcaldias %>%
 
 ```{r}
 # Cargamos la base de datos de municipios en México
-mun <- readRDS("~/GitHub/Sesión 06. Introducción a los datos espaciales/01_Datos/municipios_2022_simplificado.rds")
+mun <- readRDS("Datos/S06/municipios_2022_simplificado.rds")
 
 plot(mun) 
 ```
@@ -237,7 +237,7 @@ Para este ejercicio utilizaremos la librería `raster` que nos permite manipular
 # Cargamos la librería y el archivo raster
 library(raster)
 
-raster_file<-raster("~/GitHub/Sesión 06. Introducción a los datos espaciales/01_Datos/prec_9_extrema.tif") 
+raster_file<-raster("Datos/S06/prec_9_extrema.tif") 
 
 raster_df<-as.data.frame(raster_file,xy=TRUE)
 
@@ -263,13 +263,13 @@ delitos_cuautemoc <- delitos_2019_shp %>%
   filter(AlcaldiaHechos == "CUAUHTEMOC") 
 
 # Para guardar los datos en un archivo geojson utilizamos la función st_write
-st_write(delitos_cuautemoc, "delitos_cuauhtemoc.geojson")
+st_write(delitos_cuautemoc, "delitos_cuauhtemoc.geojson", append = FALSE)
 ```
 
 ### Ejercicio 6. Mapa del Índice de Desarrollo Humano (IDH)
 
 ```{r}
-idh <- read_csv("~/GitHub/Sesión 06. Introducción a los datos espaciales/01_Datos/Indice de Desarrollo Humano.csv") %>%
+idh <- read_csv("Datos/S06/Indice de Desarrollo Humano.csv") %>%
   filter(Year==max(Year))
 
 # Unimos los datos del índice con la base de municipios que contiene la información espacial. CVEGEO y CODGEO son las variables llave que utilizamos para la unión.
@@ -282,7 +282,10 @@ mapx <- merge(mun, idh, by.x = "CVEGEO", by.y = "CODGEO")
 mapx %>% filter(Entidad == "Morelos") %>% 
   ggplot(aes(fill = Valor)) + 
   geom_sf() + 
-  scale_fill_gradientn(colors = wesanderson::wes_palettes$Zissou1) + 
+  scale_fill_gradientn(colors = 
+                         # c("red", "yellow", "green", "blue"))+
+                         # RColorBrewer::brewer.pal(name = "YlOrRd", n = 6)) +
+                          wesanderson::wes_palettes$Zissou1) + 
   labs(title = "Índice de Desarrollo Humano", 
        subtitle = "Año: 2015", 
        caption = "Fuente: Informe de Desarrollo Humano Municipal 2010-2015\nElaborado por: Marvin Ivan Trejo Mendez") + 
@@ -303,28 +306,23 @@ mapx %>% filter(Entidad == "Morelos") %>%
                                title.hjust = 0.5))
 ```
 
-## Sesión 02
+## Sesión 07
 
 ```{r}
-setwd("C:/Users/mitrejo/Mi unidad/SPPC/Github/curso_r_datos_coneval_2024/01_Sesiones")
 # Librerias:
 pacman::p_load(sf, tidyverse, viridis, wesanderson, ghibli, ggthemes, scales, ggimage)
-```
 
-### Ejercicio 1. Mapa de participación electoral a nivel municipal
-
-```{r}
 # Polígono de los estados: 
 shp_ent <- st_read("https://raw.githubusercontent.com/JuveCampos/Shapes_Resiliencia_CDMX_CIDE/master/geojsons/Division%20Politica/DivisionEstatal.geojson")
 
 # Datos del PREP: 
-prep <- read_csv("prep_municipal.csv")  %>% 
+prep <- read_csv("Datos/S07/prep_municipal.csv")  %>% 
   mutate(CVE_INEGI = str_pad(CVE_INEGI, 
                              width = 5, 
                              side = "left", 
                              pad = "0"))
 
-shp <- st_read("municipios_2022.geojson")  %>% 
+shp <- st_read("Datos/S07/municipios_2022.geojson")  %>% 
   mutate(CVEGEO = str_pad(CVEGEO, 
                           width = 5, 
                           side = "left", 
@@ -332,25 +330,30 @@ shp <- st_read("municipios_2022.geojson")  %>%
 
 # Unimos los datos del PREP y los polígonos de los estados
 mapx <- left_join(shp,prep, by = c("CVEGEO" = "CVE_INEGI"))
+```
 
+### Ejercicio 1. Participación electoral a nivel municipal
+
+```{r}
 # Para el mapa 
-plt <- mapx %>%
+plt_mun <- mapx %>%
   ggplot(aes(fill = porcentaje_participacion)) + 
   geom_sf(color = "transparent") + 
   geom_sf(data = shp_ent, fill = NA, linewidth = 0.5) + 
-    scale_fill_gradientn(colors = wesanderson::wes_palettes$Zissou1, 
-                       breaks = seq(0, 100, 20), 
-                       labels = comma_format(suffix = "%")) + 
+    scale_fill_gradientn(colors =
+                           ghibli_palette("MarnieMedium2", direction=-1),
+                         breaks = seq(0, 100, 20), 
+                         labels = comma_format(suffix = "%")) + 
   scale_x_continuous(expand = expansion(c(0.2, 0.2))) + 
-  labs(title = "Mapa de participación a nivel municipal", 
-       subtitle = "Elecciones 2024 para presidencia", 
-       caption = "\n\n\nFuente: Elaboración propia con datos del PREP, 2024", 
+  labs(title = "Participación a nivel municipal", 
+       subtitle = "Elección presidencial 2024", 
+       caption = "\n\n\nFuente: Elaboración propia con datos del PREP, 2024\nElaborado por: Marvin Ivan Trejo Mendez", 
        fill = "Porcentaje de participación: ") + 
   theme_minimal() + 
   theme(legend.position = "bottom", 
         plot.title = element_text(size = 30, face = "bold", 
                                   family = "Arial", 
-                                  color = "olivedrab"), 
+                                  color = "#44A57CFF"), 
         plot.subtitle = element_text(size = 25), 
         plot.caption = element_text(size = 15, hjust = 0, color = "white"), 
         legend.title = element_text(size = 20), 
@@ -366,24 +369,21 @@ plt <- mapx %>%
                                barwidth = 40, 
                                barheight = 1, 
                                title.hjust = 0.5))
-# 2. Utilizando la plantilla de mapas coneval (plantilla.pdf), dele una imagen institucional al mapa de (1). ----
-plt2 <- ggimage::ggbackground(plt, "plantilla.pdf")
-ggsave("02_Graficas/01_mapa_participacion.png", 
+
+# Con la función ggbackground podemos utilizar una plantilla como imagen de fondo 
+plt2_mun <- ggimage::ggbackground(plt_mun, "Datos/S07/plantilla.pdf")
+ggsave("Mapas/01_mapa_participacion.png", 
        height = 10, 
        width = 12)
-
-plt2
-
 ```
 
-### Ejercicio 2.
+### Ejercicio 2. Coalición ganadora por municipio
 
 ```{r}
-# Realice un nuevo mapa, ahora para la candidata ganadora o para la coalición ganadora.
-
+# La función unique nos devuelve los valores únicos de un vector o la columna de un data frame. A continuación lo utilizamos para conocer las coaliciones
 unique(mapx$coalicion_ganadora)
 
-plt <- mapx %>%
+plt_gana <- mapx %>%
   ggplot(aes(fill = coalicion_ganadora)) + 
   geom_sf(color = "transparent") + 
   geom_sf(data = shp_ent, fill = NA, linewidth = 0.5) + 
@@ -391,15 +391,15 @@ plt <- mapx %>%
                                "SHH" = "#691205", 
                                "MC" = "orange")) + 
   scale_x_continuous(expand = expansion(c(0.2, 0.2))) + 
-  labs(title = "Mapa de coalición ganadora", 
-       subtitle = "Elecciones 2024 para presidencia", 
-       caption = "\n\n\nFuente: Elaboración propia con datos del PREP, 2024", 
+  labs(title = "Coalición ganadora por municipio", 
+       subtitle = "Elección presidencial 2024", 
+       caption = "\n\n\nFuente: Elaboración propia con datos del PREP, 2024\nElaborado por: Marvin Ivan Trejo Mendez", 
        fill = "Coalición: ") + 
   theme_minimal() + 
   theme(legend.position = "bottom", 
         plot.title = element_text(size = 30, face = "bold", 
                                   family = "Arial", 
-                                  color = "olivedrab"), 
+                                  color = "#44A57CFF"), 
         plot.subtitle = element_text(size = 25), 
         plot.caption = element_text(size = 15, hjust = 0, color = "white"), 
         legend.title = element_text(size = 20), 
@@ -414,52 +414,46 @@ plt <- mapx %>%
   guides(fill = guide_legend(title.position = "top", 
                                title.hjust = 0.5))
 
-# plt
-
-# Utilizando la plantilla de mapas coneval (plantilla.pdf), dele una imagen institucional al mapa de (1).
-plt2 <- ggimage::ggbackground(plt, "00_Datos/plantilla.pdf")
-ggsave("02_Graficas/02_mapa_coalicion_ganadora.png", 
+plt2_gana <- ggimage::ggbackground(plt_gana, "Datos/S07/plantilla.pdf")
+ggsave("Mapas/02_mapa_coalicion_ganadora.png", 
        height = 10, 
        width = 12)
 ```
 
-### Ejercicio 3.
+### Ejercicio 3. Participación por niveles
 
 ```{r}
-# Mapa 03 ####
-
-# Esta es para sacar los grupos: 
+# Con la función quantile obtenemos cuantiles de acuerdo con una variable de interés. En este caso utilizamos porcentaje de participación e indicamos tres valores que corresponden a 1/3 del total de datos.
 quantile(mapx$porcentaje_participacion, c(0.33, 0.66, 1), na.rm = T)
 
-plt <- mapx %>%
+#Con la información de los cuantiles crearemos tres grupos, categorizados en baja, media y alta participación electoral
+
+
+
+plt_nivel <- mapx %>%
   mutate(grupo_participacion = case_when(
-    porcentaje_participacion < 58.55 ~ "Baja participación", 
-    between(porcentaje_participacion, 58.55, 67.81) ~ "Media participacion", 
-    porcentaje_participacion > 67.81 ~ "Alta participación"
-    )) %>%
+   porcentaje_participacion < 58.55 ~ "Baja (menor a 58.6)",
+   between(porcentaje_participacion, 58.55, 67.81) ~ "Media (entre 58.6 y 67.8)",
+   porcentaje_participacion > 67.81 ~ "Alta (mayor a 67.8)")) %>% 
   ggplot(aes(fill = grupo_participacion)) + 
   geom_sf(color = "transparent") + 
   geom_sf(data = shp_ent, fill = NA, linewidth = 0.5) + 
-  scale_fill_manual(values = c("Baja participación" = "gray90", 
-                               "Media participacion" = "gray50", 
-                               "Alta participación" = "black")) + 
-  # scale_fill_gradientn(colors = wesanderson::wes_palettes$Zissou1, 
-  #                      breaks = seq(0, 100, 20), 
-  #                      labels = comma_format(suffix = "%")
-  # ) + 
+  scale_fill_manual(values = c("Baja (menor a 58.6)" = "#E75B64FF", 
+                                "Media (entre 58.6 y 67.8)" = "#D8AF39FF", 
+                                "Alta (mayor a 67.8)" = "#278B9AFF")) + 
   scale_x_continuous(expand = expansion(c(0.2, 0.2))) + 
-  labs(title = "Mapa de municipios por grupo de participación", 
-       subtitle = "Elecciones 2024 para presidencia", 
-       caption = "\n\n\nFuente: Elaboración propia con datos del PREP, 2024", 
-       fill = "Grupo: ") + 
+  labs(title = "Nivel de participación por municipio", 
+       subtitle = "Elección presidencial 2024", 
+       caption = "\n\n\nFuente: Elaboración propia con datos del PREP 2024\nElaborado por: Marvin Ivan Trejo Mendez", 
+       fill = "Participación\n(porcentaje)") + 
   theme_minimal() + 
   theme(legend.position = "bottom", 
         plot.title = element_text(size = 30, face = "bold", 
                                   family = "Arial", 
-                                  color = "olivedrab"), 
+                                  color = "#44A57CFF"), 
         plot.subtitle = element_text(size = 25), 
         plot.caption = element_text(size = 15, hjust = 0, color = "white"), 
-        legend.title = element_text(size = 20), 
+        legend.title = element_text(size = 20, face = "bold"), 
         legend.text = element_text(size = 18), 
         axis.text = element_blank(), 
         panel.grid = element_blank(), 
@@ -471,12 +465,200 @@ plt <- mapx %>%
   guides(fill = guide_legend(title.position = "top", 
                                title.hjust = 0.5))
 
-# plt
-
-# 4. Utilizando la plantilla de mapas coneval (plantilla.pdf), dele una imagen institucional al mapa de (1). ----
-
-plt2 <- ggimage::ggbackground(plt, "00_Datos/plantilla.pdf")
-ggsave("02_Graficas/03_mapa_grupos_participacion.png", 
+plt2_nivel <- ggimage::ggbackground(plt_nivel, "Datos/S07/plantilla.pdf")
+ggsave("Mapas/03_mapa_grupos_participacion.png", 
        height = 10, 
        width = 12)
+```
+
+## Sesión 08
+
+### Funciones en R
+
+Las funciones son objetos de R que realizan cálculos de manera estructurada con cierto fin o propósito. Se componen de cuatro elementos:
+
+1.  *Argumento:* controla la manera en que se llama a la función.
+
+2.  *Cuerpo de la función:* código dentro de la función
+
+3.  *Nombre de la función*
+
+4.  *Ambiente o estructura:* manera en que la función encuentra los elementos necesarios para funcionar.
+
+```{r}
+nomb_func<-funcion(argumento) {
+  # cuerpo de la función
+  ...orden_1...
+  ...orden_2...
+  ...orden_3...
+}
+```
+
+### Bucles
+
+```{r}
+# # Sintaxis del bucle for
+# for (variable in secuencia) {
+#   # Código a ejecutar en cada iteración 
+# }
+
+# Bucle para imprimir números del 1 al 5
+for (i in 1:5){
+  print(i)
+}
+```
+
+### Ejercicio 1. Función redondear
+
+La siguiente función toma como argumento un número "x" y un número "n" para realizar lo siguiente:
+
+-   Redondear el número "x" a "n" decimales.
+
+-   Si al redondear el número queda con menos decimales que "n", rellenar con ceros
+
+-   Colocar coma como separador de miles.
+
+```{r}
+x = 1234556.000001
+n = 4
+
+nb <- function(x, n){
+  round(x = x, digits = n) %>% 
+    format(nsmall = n) %>% 
+    prettyNum(big.mark = ",")
+}
+
+# La siguiente función quita la notación científica
+options(scipen = 999)
+
+nb(x = 100000, n = 2)
+nb(x = 100, n = 1)
+```
+
+### Ejercicio 2. Función para generar mapas
+
+Este ejercicio se realiza con los datos de la sesión 07.
+
+```{r}
+sel_edo = 32
+
+gen_coal_ganadora <- function(sel_edo){
+  
+mapx2 <- mapx %>% 
+  filter(cve_ent == sel_edo)
+
+shp_ent2 <- shp_ent %>% 
+  filter(as.numeric(CVE_EDO) == sel_edo)
+
+nombre_entidad <- mapx2$nom_ent %>% unique() %>% str_to_sentence()
+
+f_plt <- mapx2 %>%
+  ggplot(aes(fill = coalicion_ganadora)) + 
+  geom_sf(color = "transparent") + 
+  geom_sf(data = shp_ent2, fill = NA, linewidth = 0.5) +
+  scale_fill_manual(values = c("FyCXM" = "#040b6e", 
+                               "SHH" = "#691205", 
+                               "MC" = "orange")) + 
+  scale_x_continuous(expand = expansion(c(0.2, 0.2))) +
+  labs(title = str_c("Coalición ganadora"," - ", nombre_entidad), 
+       subtitle = "Elección presidencial 2024", 
+       caption = "\n\n\nFuente: Elaboración propia con datos del PREP 2024\nElaborado por: Marvin Ivan Trejo Mendez", 
+       fill = "Coalición: ") + 
+  theme_minimal() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(size = 30, face = "bold", 
+                                  family = "Arial", 
+                                  color = "#44A57CFF"), 
+        plot.subtitle = element_text(size = 25, color="darkgrey", face="bold"), 
+        plot.caption = element_text(size = 15, hjust = 0, color = "white"), 
+        legend.title = element_text(size = 20), 
+        legend.text = element_text(size = 18), 
+        axis.text = element_blank(), 
+        panel.grid = element_blank(), 
+        plot.margin = margin(t = 3.5, 
+                             r = 2, 
+                             b = 0, 
+                             l = 2, 
+                             unit = "cm")) + 
+  guides(fill = guide_legend(title.position = "top", 
+                             title.hjust = 0.5))
+f_plt
+
+f_plt2 <- ggimage::ggbackground(f_plt, "Datos/S08/plantilla.pdf")
+ggsave(str_c("Mapas/02_mapa_coalicion_ganadora","_",sel_edo,".png"),
+       height = 10, 
+       width = 12)
+}
+
+gen_coal_ganadora(sel_edo = 32)
+
+for (estado_para_mapa in 1:32){
+  gen_coal_ganadora(sel_edo = estado_para_mapa)
+  print(str_c("Mapa ", estado_para_mapa, "/32 generado n_n"))
+}
+```
+
+```{r}
+
+# 4. Elabore nuevamente el mapa de coaliciones ganadoras, pero ahora en la librería leaflet. ----
+
+
+mapx <- left_join(shp,prep, by = c("CVEGEO" = "CVE_INEGI"))
+
+library(leaflet)
+
+etiquetas_mpios <- str_c(mapx$CVEGEO, " - ", 
+                         mapx$NOMGEO, ", ",
+                         mapx$nom_ent
+                         )
+
+popup_mapa <- str_c(
+  "<b>Municipio: </b>", mapx$NOMGEO, ", ",
+  mapx$nom_ent, "<br>",
+  "<b>Coalición ganadora: </b>", mapx$coalicion_ganadora, "<br>",
+                    "<b>Porcentaje de participación: </b>", round(mapx$porcentaje_participacion, 2), "%<br>",
+  "<b>Votos Claudia:</b> ", mapx$votos_cs, "<br>",
+  "<b>Votos Xóchitl:</b> ", mapx$votos_xochitl, "<br>",
+  "<b>Votos Máynez:</b> ", mapx$votos_jam
+  )
+
+
+unique(mapx$coalicion_ganadora)
+paleta_coaliciones <- colorFactor(palette = c("blue",
+                                              "orange", 
+                                              "brown"), 
+                                  domain = c("FyCXM",
+                                             "MC",
+                                             "SHH" 
+                                             ))
+
+
+mp <- leaflet() %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(data = mapx, 
+              weight = 0.8, 
+              color = "black", 
+              fillColor = paleta_coaliciones(mapx$coalicion_ganadora), 
+              opacity = 1, 
+              label = etiquetas_mpios,
+              popup = popup_mapa,
+              fillOpacity = 0.7, 
+              highlightOptions = 
+                highlightOptions(color = "green",
+                                 weight = 5, 
+                                 bringToFront = F,
+                                 opacity = 1)) %>% 
+  addPolygons(data = shp_ent, 
+              fill = NA, 
+              opacity = 1,
+              color = "white", 
+              weight = 2) %>% 
+  addLegend(position = "bottomright", 
+            pal = paleta_coaliciones, 
+            values = mapx$coalicion_ganadora, 
+            title = "Coalición ganadora")
+
+mp
+
+htmlwidgets::saveWidget(mp, "mapa_pagina.html")
 ```

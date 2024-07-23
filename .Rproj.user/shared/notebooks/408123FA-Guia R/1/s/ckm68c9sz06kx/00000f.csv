@@ -1,0 +1,4 @@
+"0","# Cargamos la base de datos de municipios en México"
+"0","mun <- readRDS(""Datos/S06/municipios_2022_simplificado.rds"")"
+"0",""
+"0","plot(mun) "

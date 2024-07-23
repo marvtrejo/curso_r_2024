@@ -1,0 +1,4 @@
+"0","alcaldias <-"
+"0","  read_sf(""Datos/S06/alcaldias.kml"")"
+"0",""
+"0","plot(alcaldias)"

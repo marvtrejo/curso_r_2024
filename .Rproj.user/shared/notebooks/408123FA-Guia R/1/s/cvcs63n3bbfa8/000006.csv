@@ -1,0 +1,65 @@
+"0","sel_edo = 32
+
+gen_coal_ganadora <- function(sel_edo){
+  
+mapx2 <- mapx %>% 
+  filter(cve_ent == sel_edo)
+
+shp_ent2 <- shp_ent %>% 
+  filter(as.numeric(CVE_EDO) == sel_edo)
+
+nombre_entidad <- mapx2$nom_ent %>% unique() %>% str_to_sentence()
+
+f_plt <- mapx2 %>%
+  ggplot(aes(fill = coalicion_ganadora)) + 
+  geom_sf(color = ""transparent"") + 
+  geom_sf(data = shp_ent2, fill = NA, linewidth = 0.5) +
+  scale_fill_manual(values = c(""FyCXM"" = ""#040b6e"", 
+                               ""SHH"" = ""#691205"", 
+                               ""MC"" = ""orange"")) + 
+  scale_x_continuous(expand = expansion(c(0.2, 0.2))) +
+  labs(title = str_c(""Coalición ganadora"","" - "", nombre_entidad), 
+       subtitle = ""Elección presidencial 2024"", 
+       caption = ""\n\n\nFuente: Elaboración propia con datos del PREP 2024\nElaborado por: Marvin Ivan Trejo Mendez"", 
+       fill = ""Coalición: "") + 
+  theme_minimal() + 
+  theme(legend.position = ""bottom"", 
+        plot.title = element_text(size = 30, face = ""bold"", 
+                                  family = ""Arial"", 
+                                  color = ""#44A57CFF""), 
+        plot.subtitle = element_text(size = 25, color=""darkgrey"", face=""bold""), 
+        plot.caption = element_text(size = 15, hjust = 0, color = ""white""), 
+        legend.title = element_text(size = 20), 
+        legend.text = element_text(size = 18), 
+        axis.text = element_blank(), 
+        panel.grid = element_blank(), 
+        plot.margin = margin(t = 3.5, 
+                             r = 2, 
+                             b = 0, 
+                             l = 2, 
+                             unit = ""cm"")) + 
+  guides(fill = guide_legend(title.position = ""top"", 
+                             title.hjust = 0.5))
+f_plt
+
+f_plt2 <- ggimage::ggbackground(f_plt, ""Datos/S08/plantilla.pdf"")
+ggsave(str_c(""Mapas/02_mapa_coalicion_ganadora"",""_"",sel_edo,"".png""),
+       height = 10, 
+       width = 12)
+}
+
+gen_coal_ganadora(sel_edo = 32)
+
+for (estado_para_mapa in 1:2){
+  gen_coal_ganadora(sel_edo = estado_para_mapa)
+  print(str_c(""Mapa "", estado_para_mapa, ""/32 generado n_n""))
+}
+"
+"1","[1]"
+"1"," ""Mapa 1/32 generado n_n"""
+"1","
+"
+"1","[1]"
+"1"," ""Mapa 2/32 generado n_n"""
+"1","
+"

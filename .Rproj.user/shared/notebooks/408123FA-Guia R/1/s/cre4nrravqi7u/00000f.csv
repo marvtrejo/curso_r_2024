@@ -1,0 +1,5 @@
+"0","concentrado2020<-concentrado2020 %>% "
+"0","  mutate(sexo_jefe=as_numeric(sexo_jefe) %>% "
+"0","           sjlabelled:set_labels(sexo_jefe, labels=c(""Hombre"", ""Mujer"")))"
+"2","Error: objeto 'concentrado2020' no encontrado
+"

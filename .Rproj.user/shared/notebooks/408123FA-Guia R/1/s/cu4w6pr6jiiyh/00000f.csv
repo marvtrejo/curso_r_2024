@@ -1,0 +1,29 @@
+"0","# Cargamos la librería y el archivo raster"
+"0","library(raster)"
+"2","Cargando paquete requerido: sp
+"
+"2","
+Adjuntando el paquete: ‘raster’
+
+"
+"2","The following object is masked from ‘package:dplyr’:
+
+    select
+
+"
+"0","raster_file<-raster(""Datos/S06/prec_9_extrema.tif"") "
+"0",""
+"0","raster_df<-as.data.frame(raster_file,xy=TRUE)"
+"0",""
+"0","colnames(raster_df)[3]<-""valor"""
+"0",""
+"0","# Creamos el mapa"
+"0","ggplot() + "
+"0","  geom_raster(data = raster_df, aes(x = x, y = y, fill = valor)) +"
+"0","  scale_fill_viridis_c() + "
+"0","  coord_fixed() + "
+"0","  labs(title = ""Mapa Raster"", "
+"0","       x = ""Longitud"", "
+"0","       y = ""Latitud"", "
+"0","       fill = ""Valor"") + "
+"0","  theme_minimal()"

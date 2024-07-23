@@ -1,0 +1,5 @@
+"0","if(!require(""pacman"")) install.packages(""pacman"")"
+"2","Cargando paquete requerido: pacman
+"
+"0","pacman::p_load(tidyverse, readxl, writexl, haven, sjlabelled, foreign)"
+"0","  "

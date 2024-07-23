@@ -1,0 +1,3 @@
+"0",""
+"0","# Se puede limitar el número de mapas con el argumento max.plot"
+"0","plot(estados, max.plot=2)"
