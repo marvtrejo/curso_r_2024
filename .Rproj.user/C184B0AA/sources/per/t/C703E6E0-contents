@@ -598,42 +598,79 @@ for (estado_para_mapa in 1:32){
 }
 ```
 
+### Leaflet
+
+Es una librería de Javascript que nos permite crear mapas interactivos utilizando la sintaxis de R. La función `leaflet::leaflet()` es la función que recibe el objeto sf para hacer el mapa y a la cual se van añadiendo las distintas opciones o geometrías. Algunas de las funciones de la librería son:
+
+Leaflet maneja distintos tipos de capas:
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+| [Elemento]{.smallcaps}                                                                                                                                           | [Funciones]{.smallcaps}                                                                                                     |
++==================================================================================================================================================================+=============================================================================================================================+
+| **Mapa base (tiles):** imagenes georeferenciadas que dan contexto sobre el lugar donde se encuentran nuestras geometrías.                                        | -   `addTiles()`: agrega un mapa base default al mapa que estamos elaborando. [Leaflet trabaja con el crs=4326]{.underline} |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  | -   `addProviderTiles("nombre_mapabase")`: agrega un mapa base distinto al default.                                         |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+| **Capas de geometrías:** geometrías almacenadas en los objetos a partir de los cuales se construyen los mapas.                                                   | -   `addPolygon()`                                                                                                          |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  | -   `addPolylines()`                                                                                                        |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  | -   `addCircleMaker()`                                                                                                      |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  | -   `addMarker()`                                                                                                           |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  | -   `addRasterImage()`                                                                                                      |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+| **Controles:** elementos de la interfaz de usuario que controlan la interacción del usuario con la información del mapa.                                         |                                                                                                                             |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+| **Leyendas:** elementos del mapa que informan acerca de la paleta de colores utilizada.                                                                          | -   `addLegend()` permite construir la leyenda del mapa. Recibe como argumentos                                             |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  |     -   Paleta de colores                                                                                                   |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  |     -   Dominio o valores a los que se asocia un color                                                                      |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  |     -   Posición de la leyenda                                                                                              |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  |     -   Título de la leyenda                                                                                                |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+| **Tooltips o labels:** elementos de la interfaz de usuario que se despliegan como cajas de texto informativo al pasar el cursor sobre algún elemento de interés. |                                                                                                                             |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+| **Popups:** elementos de la interfaz de usuario que despliegan información cuando el usuario realiza una acción particular.                                      |                                                                                                                             |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+
+### Ejercicio 3. Mapa en leaflet
+
+Para este ejercicio utilizaremos los datos de la sesión 07
+
 ```{r}
-
-# 4. Elabore nuevamente el mapa de coaliciones ganadoras, pero ahora en la librería leaflet. ----
-
-
-mapx <- left_join(shp,prep, by = c("CVEGEO" = "CVE_INEGI"))
-
-library(leaflet)
 
 etiquetas_mpios <- str_c(mapx$CVEGEO, " - ", 
                          mapx$NOMGEO, ", ",
-                         mapx$nom_ent
-                         )
+                         mapx$nom_ent)
 
-popup_mapa <- str_c(
-  "<b>Municipio: </b>", mapx$NOMGEO, ", ",
-  mapx$nom_ent, "<br>",
-  "<b>Coalición ganadora: </b>", mapx$coalicion_ganadora, "<br>",
-                    "<b>Porcentaje de participación: </b>", round(mapx$porcentaje_participacion, 2), "%<br>",
-  "<b>Votos Claudia:</b> ", mapx$votos_cs, "<br>",
-  "<b>Votos Xóchitl:</b> ", mapx$votos_xochitl, "<br>",
-  "<b>Votos Máynez:</b> ", mapx$votos_jam
-  )
+# El popup se construye como una cadena de texto con formato html
+popup_mapa <- str_c("<b>Municipio: </b>",mapx$NOMGEO, ", ", mapx$nom_ent, 
+                    "<br>",
+                    "<b>Coalición ganadora: </b>",mapx$coalicion_ganadora, 
+                    "<br>",
+                    "<b>Porcentaje de participación: </b>", 
+                    round(mapx$porcentaje_participacion, 2), "%<br>",
+                    "<b>Votos Claudia:</b> ", mapx$votos_cs, "<br>",
+                    "<b>Votos Xóchitl:</b> ", mapx$votos_xochitl, "<br>",
+                    "<b>Votos Máynez:</b> ", mapx$votos_jam)
 
 
+# La paleta de colores se construye con dos argumentos: vector de colores y vector de dominio o valores a los que se asigna un color
 unique(mapx$coalicion_ganadora)
-paleta_coaliciones <- colorFactor(palette = c("blue",
-                                              "orange", 
-                                              "brown"), 
-                                  domain = c("FyCXM",
-                                             "MC",
-                                             "SHH" 
-                                             ))
+paleta_coaliciones <- colorFactor(palette = c("blue","orange","brown"), 
+                                  domain = c("FyCXM","MC","SHH"))
+
+#Se utiliza la función colorFactor() porque el dominio tiene valores categóricos. En otros casos se utiliza:
+#   colorNUmeric() para dominio con números continuos y escala continua.
+#   colorBin() para dominio con números continuos y escala discreta.
 
 
-mp <- leaflet() %>% 
+mapa_interactivo <- leaflet() %>% 
   addProviderTiles(providers$CartoDB.Positron) %>% 
   addPolygons(data = mapx, 
               weight = 0.8, 
@@ -643,7 +680,7 @@ mp <- leaflet() %>%
               label = etiquetas_mpios,
               popup = popup_mapa,
               fillOpacity = 0.7, 
-              highlightOptions = 
+              highlightOptions =
                 highlightOptions(color = "green",
                                  weight = 5, 
                                  bringToFront = F,
@@ -658,7 +695,7 @@ mp <- leaflet() %>%
             values = mapx$coalicion_ganadora, 
             title = "Coalición ganadora")
 
-mp
+mapa_interactivo
 
-htmlwidgets::saveWidget(mp, "mapa_pagina.html")
+htmlwidgets::saveWidget(mapa_interactivo, "mapa_pagina.html")
 ```
