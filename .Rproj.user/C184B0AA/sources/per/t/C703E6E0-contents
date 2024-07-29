@@ -1,6 +1,7 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output: 
+html_notebook
 ---
 
 # Comandos básicos
@@ -696,6 +697,124 @@ mapa_interactivo <- leaflet() %>%
             title = "Coalición ganadora")
 
 mapa_interactivo
+
+htmlwidgets::saveWidget(mapa_interactivo, "mapa_pagina.html")
+```
+
+## Ejercicio final
+
+Librerías utilizadas:
+
+```{r}
+library(tidyverse)
+library(sf)
+library(leaflet)
+library(viridis)
+library(ghibli)
+
+
+```
+
+1.  Sumar por municipio y modalidad
+
+Para este ejercicio utilizaremos la base [**Subsidios directos a la población, por municipio de Cuenta Pública**]{.underline} del Portal de Transparencia Pública, disponible en:
+
+<https://www.transparenciapresupuestaria.gob.mx/work/models/PTP/DatosAbiertos/Entidades_Federativas/Subsidios_CP2023.zip>
+
+Esta base cuenta con información del presupuesto ejercido por programa social a nivel municipal.
+
+```{r}
+# Cargamos la base de subsidios y hacemos las modificaciones al formato para crear una variable ID compatible con los archivos geojson
+
+subsidios_cp23<-read.csv("Datos/Subsidios_CP23.csv", 
+                         fileEncoding = "ISO-8859-1") %>% 
+  mutate(ID_ENTIDAD_FEDERATIVA = str_pad(ID_ENTIDAD_FEDERATIVA,
+                                         width = 2,
+                                         side = "left",
+                                         pad = "0")) %>% 
+  mutate(ID_MUNICIPIO = str_pad(ID_MUNICIPIO,
+                                         width = 3,
+                                         side = "left",
+                                         pad = "0")) %>% 
+  mutate(idgeo = str_c(ID_ENTIDAD_FEDERATIVA,ID_MUNICIPIO)) %>% 
+  mutate(mod = substr(MODALIDAD_PP,1,1))
+
+sub_cp23 <- aggregate(subsidios_cp23$MONTO_EJERCIDO,
+                      list(subsidios_cp23$idgeo), sum)
+
+# A continuación cargamos la información de polígono de estados y municipios: 
+
+# Polígono de estados
+shp_ent <- st_read("https://raw.githubusercontent.com/JuveCampos/Shapes_Resiliencia_CDMX_CIDE/master/geojsons/Division%20Politica/DivisionEstatal.geojson")
+
+# Polígono de municipios
+shp <- st_read("Datos/S07/municipios_2022.geojson")  %>% 
+  mutate(CVEGEO = str_pad(CVEGEO, 
+                          width = 5, 
+                          side = "left", 
+                          pad = "0"))
+
+# Por último, unimos los datos de presupuesto y los polígonos de municipios
+map_subsidios <- left_join(shp,sub_cp23, by = c("CVEGEO" = "Group.1")) %>% 
+  mutate(x = x/1000000) %>%
+  mutate(nivel_pres = case_when(
+   x < 24.8 ~ "Menor a 24.8 MDP",
+   between(x, 24.8, 59.4) ~ "Entre 24.8 y 59.4 MDP",
+   between(x, 59.4, 116.6) ~ "Entre 59.4 y 116.6 MDP",
+   between(x, 116.6, 257.2) ~ "Entre 116.6 y 257.2 MDP",
+   x > 257.2 ~ "Mayor a 257.2 MDP"))
+
+quantile(map_subsidios$x,c(0.20, 0.40, 0.60, 0.80, 1), na.rm=T)
+```
+
+Con la base resultante podemos elaborar un mapa del presupuesto ejercido por programa social a nivel municipal
+
+```{r}
+etq_mpios <- str_c(map_subsidios$CVEGEO, " - ",
+                   map_subsidios$NOMGEO)
+
+# El popup se construye como una cadena de texto con formato html
+popup_mapa <- str_c("<b>Municipio: </b>",map_subsidios$NOMGEO,
+                    "<br>",
+                    "<b>Presupuesto de desarrollo<br>social ejercido:</b>",
+                    "<br>",
+                    "$", format(map_subsidios$x, 
+                                digits= 2, scientific= F, big.mark = ","), 
+                    " Millones de Pesos (MDP)")
+
+
+# La paleta de colores se construye con dos argumentos: vector de colores y vector de dominio o valores a los que se asigna un color
+paleta_presupuesto <- colorFactor(palette = ghibli_palettes$LaputaMedium,
+                                   domain = map_subsidios$nivel_pres)
+
+
+
+mapa_presupuesto <- leaflet() %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(data = map_subsidios, 
+              weight = 0.8, 
+              color = "black", 
+              fillColor = paleta_presupuesto(map_subsidios$nivel_pres), 
+              opacity = 1, 
+              label = etq_mpios,
+              popup = popup_mapa,
+              fillOpacity = 0.7, 
+              highlightOptions =
+                highlightOptions(color = "green",
+                                 weight = 5, 
+                                 bringToFront = F,
+                                 opacity = 1)) %>% 
+  addPolygons(data = shp_ent, 
+              fill = NA, 
+              opacity = 1,
+              color = "white", 
+              weight = 2) %>% 
+  addLegend(position = "bottomleft", 
+            pal = paleta_presupuesto, 
+            values = map_subsidios$nivel_pres, 
+            title = "Presupuesto de desarrollo<br>social ejercido")
+
+mapa_presupuesto
 
 htmlwidgets::saveWidget(mapa_interactivo, "mapa_pagina.html")
 ```

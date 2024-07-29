@@ -1,0 +1,5 @@
+"0","paleta_presupuesto <- colorFactor(palette = ghibli_palettes$LaputaMedium,
+                                   domain = map_subsidios$nivel_pres)
+"
+"2","Error: objeto 'ghibli_palettes' no encontrado
+"

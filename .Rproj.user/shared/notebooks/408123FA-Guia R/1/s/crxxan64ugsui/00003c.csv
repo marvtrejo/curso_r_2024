@@ -1,0 +1,13 @@
+"0","map_subsidios <- left_join(shp,sub_cp23, by = c(""CVEGEO"" = ""Group.1"")) %>% 
+  mutate(x = x/1000000) %>%
+  mutate(nivel_pres = case_when(
+   x < 24.8 ~ ""Menor a 24.8 MDP"",
+   between(x, 24.8, 59.4) ~ ""Entre 24.8 y 59.4 MDP"",
+   between(x, 59.4, 116.6) ~ ""Entre 59.4 y 116.6 MDP"",
+   between(x, 116.6, 257.2) ~ ""Entre 116.6 y 257.2 MDP""
+   x > 257.2 ~ ""Mayor a 257.2 MDP""))
+"
+"2","Error: unexpected symbol in:
+""   between(x, 116.6, 257.2) ~ ""Entre 116.6 y 257.2 MDP""
+   x""
+"
