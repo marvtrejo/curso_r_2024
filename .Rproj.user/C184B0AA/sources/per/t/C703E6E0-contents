@@ -711,8 +711,6 @@ library(sf)
 library(leaflet)
 library(viridis)
 library(ghibli)
-
-
 ```
 
 1.  Sumar por municipio y modalidad
