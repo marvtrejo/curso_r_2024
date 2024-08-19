@@ -1,0 +1,775 @@
+---
+title: "Visualización de datos espaciales"
+subtitle: "Curso de visualización de información con R para la evaluación de políticas públicas 2024"
+author: "Marvin Ivan Trejo Mendez"
+output:
+  html_document:
+    theme: journal
+    df_print: paged
+    toc: TRUE
+    toc_float: TRUE
+    mainfont: Arial
+    code_download: TRUE
+---
+
+# Nociones básicas
+
+La información geográfica se caracteriza por tener dos elementos: ubicación y atributo
+
++---------------------+------------------------+
+| Ubicación           | Atributo               |
++:===================:+:======================:+
+| Puntos              | Nombres de calles      |
+|                     |                        |
+| Líneas              | Estadísticas del lugar |
+|                     |                        |
+| Polígonos           | Precios                |
+|                     |                        |
+| Áreas               | Población              |
+|                     |                        |
+| Matrices de pixeles | Índices                |
++---------------------+------------------------+
+
+Este tipo de información se puede almacenar en archivos de distintos tipos:
+
+-   **Shapefile:** se compone de 5 archivos diferentes, por lo general se utiliza en ArcGIS y QGis.
+
+-   **GeoJSON:** popular entre usuarios de R y Python. Se caracteriza por ser ligero y accesible desde la web.
+
+-   **Excel (.csv, .xlsx):** puede almacenar coordenadas de puntos o ubicaciones.
+
+-   **Imagen (.tiff, .geotiff):** imagen grande y georeferenciada,utilizada para almacenar bases de datos Raster e imágenes satelitales.
+
+Un **CRS** o **Sistema de Coordenadas de Referencia** se utiliza para localizar las entidades geográficas. Debe incluir:
+
+1.  Una proyección geográfica.
+
+2.  Un punto de referencia.
+
+3.  Un sistema de traducción a otro CRS.
+
+4.  Un datum o elipsoide de referencia.
+
+Para los ejercicios de esta guía se utilizará el **crs 4326 (WGS84 proyección lat/long)** por ser el más común y utilizado por default en las librerías `leaflet` y `google maps`
+
+Librerías utilizadas:
+
+-   `sf`: permite almacenar los objetos espaciales como data frame, con una columna que contiene la información de coordenadas geométricas.
+
+-   `readxl`
+
+-   `tidyverse`
+
+Además, cargamos el archivo geojson que es un archivo de texto plano y se puede cargar desde internet.
+
+```{r, warning=FALSE, message=FALSE}
+pacman::p_load(tidyverse, readxl, sf)
+
+# La función st_read lee un archivo o base de datos vectorial como un objeto sf. Admite URL
+estados <- 
+  st_read("https://raw.githubusercontent.com/JuveCampos/Shapes_Resiliencia_CDMX_CIDE/master/geojsons/Division%20Politica/DivisionEstatal.geojson")
+
+# Con esta función se hace un mapa exploratorio de las geometrías que contiene el objeto sf. Imprime entre 8 y 9 mapas de las primeras variables.
+plot(estados)
+
+# Se puede limitar el número de mapas con el argumento max.plot
+plot(estados, max.plot=2)
+```
+
+# Sesión 06
+
+## Ejercicio 1. Convertir mapa en objeto *sf*
+
+```{r, warning=FALSE}
+# Primero cargamos la base de datos Delitos 2019
+delitos_2019 <- 
+  read_xlsx("Datos/S06/delitos_2019.xlsx")
+
+# El archivo es de excel, por lo que se carga como un data frame
+class(delitos_2019)
+
+# Con la función st_as_sf podemos convertir un data frame en un objeto sf
+delitos_2019_shp <- 
+  delitos_2019 %>% 
+  st_as_sf(coords = c("longitud", "latitud"), crs = 4326) 
+
+plot(delitos_2019_shp, max.plot = 1)
+```
+
+## Ejercicio 2. Cargar polígonos de las alcaldías (`ARCHIVO.kml`).
+
+```{r, warning=FALSE}
+alcaldias <-
+  read_sf("Datos/S06/alcaldias.kml")
+
+plot(alcaldias)
+#En este caso, el objeto sf tiene dos atributos: nombre y descripción
+```
+
+### 2.1 Mapa en ggplot de alcaldías y municipios
+
+```{r, warning=FALSE}
+# La función geom_sf() añade la capa del elemento geométrico en una gráfica ggplot. Es similar a geom_histogram(), geom_point() o geom_line().
+
+alcaldias %>% 
+  ggplot() +
+  geom_sf() +
+  geom_sf(data=delitos_2019_shp, 
+          alpha=0.01, 
+          color="red") +
+  labs(title="Ubicación de los delitos en la Ciudad de México") +
+  theme_bw() +
+  theme(axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        panel.grid=element_blank(),
+        panel.border=element_blank(),
+        plot.title=element_text(family = "Arial", 
+                                face="bold",
+                                hjust=0.5, 
+                                size=20))
+
+delitos_2019_shp <- delitos_2019_shp %>% 
+  mutate(x=st_coordinates(delitos_2019_shp)[,1],
+         y=st_coordinates(delitos_2019_shp)[,2])
+
+# Agregando más elementos al mapa
+ggplot(delitos_2019_shp) + 
+  geom_sf(data = alcaldias, 
+          fill = "beige", 
+          linetype = 2) + 
+  stat_density_2d(aes(fill = after_stat(level), 
+                      x=x, 
+                      y=y), 
+                  geom = "polygon", 
+                  colour="white") + 
+  scale_fill_gradientn(colors = wesanderson::wes_palettes$Zissou1) + 
+  labs(title = "Ubicación de los delitos en la Ciudad de México", 
+       x = NULL, 
+       y = NULL, 
+       fill = "Nivel de delitos") + 
+  theme_bw() + 
+  theme(axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        panel.grid = element_blank(), 
+        panel.border = element_blank(), 
+        legend.position = "bottom", 
+        plot.title = element_text(family = "Arial", 
+                                  face = "bold", 
+                                  hjust = 0.5, 
+                                  size = 20, 
+                                  color = "navyblue")) + 
+  guides(fill = guide_colorbar(barwidth = 20, 
+                               barheight = 0.5, 
+                               title.position = "top", 
+                               title.hjust = 0.5))
+```
+
+### 2.2 Mapa de delitos para la Cuauhtémoc
+
+```{r, warning=FALSE}
+# Con la función filter, podemos crear un subconjunto de datos a partir de un dataframe. En este caso seleccionamos el subconjunto que contiene los delitos ocurridos en las alcaldías Cuauhtemoc e Iztapala.
+
+delitos_cuautemoc <- delitos_2019_shp %>% 
+  filter(!(AlcaldiaHechos %in% c("CUAUHTEMOC", "IZTAPALAPA")))
+
+# También podemos aplicar la función filter al momento de hacer un mapa. En este ejemplo se excluye del mapa las alcaldías Cuauhtémoc e Iztapalapa
+
+alcaldias %>% 
+  filter(!(Name %in% c("Cuauhtémoc", "Iztapalapa"))) %>% 
+  ggplot() + 
+  geom_sf() + 
+  geom_sf(data = delitos_cuautemoc, 
+          alpha = 0.01, 
+          color = "red")
+```
+
+## Ejercicio 3. Mapa de municipios
+
+```{r, warning=FALSE}
+# Cargamos la base de datos de municipios en México
+mun <- readRDS("Datos/S06/municipios_2022_simplificado.rds")
+
+plot(mun) 
+```
+
+## Ejercicio 4. Mapa de precipitaciones
+
+Para este ejercicio utilizaremos la librería `raster` que nos permite manipular información geográfica en formato *raster*. Este formato divide el espacio en celdas (rectángulos o pixeles) del mismo tamaño en unidades CRS.
+
+```{r, warning=FALSE, message=FALSE}
+# Cargamos la librería y el archivo raster
+library(raster)
+
+raster_file<-raster("Datos/S06/prec_9_extrema.tif") 
+
+raster_df<-as.data.frame(raster_file,xy=TRUE)
+
+colnames(raster_df)[3]<-"valor"
+
+# Creamos el mapa
+ggplot() + 
+  geom_raster(data = raster_df, aes(x = x, y = y, fill = valor)) +
+  scale_fill_viridis_c() + 
+  coord_fixed() + 
+  labs(title = "Mapa Raster", 
+       x = "Longitud", 
+       y = "Latitud", 
+       fill = "Valor") + 
+  theme_minimal()
+```
+
+## Ejercicio 5. Exportar archivo `geojson`
+
+```{r, warning=FALSE, message=FALSE}
+# Filtramos los datos de los delitos para la alcaldía Cuauhtémoc
+delitos_cuautemoc <- delitos_2019_shp %>% 
+  filter(AlcaldiaHechos == "CUAUHTEMOC") 
+
+# Para guardar los datos en un archivo geojson utilizamos la función st_write
+st_write(delitos_cuautemoc, "delitos_cuauhtemoc.geojson", append = FALSE)
+```
+
+## Ejercicio 6. Mapa del Índice de Desarrollo Humano (IDH)
+
+```{r, warning=FALSE, message=FALSE}
+idh <- read_csv("Datos/S06/Indice de Desarrollo Humano.csv") %>%
+  filter(Year==max(Year))
+
+# Unimos los datos del índice con la base de municipios que contiene la información espacial. CVEGEO y CODGEO son las variables llave que utilizamos para la unión.
+
+left_join(mun, idh, by = c("CVEGEO" = "CODGEO")) 
+
+mapx <- merge(mun, idh, by.x = "CVEGEO", by.y = "CODGEO")
+
+# Mapa del IDH para el estado de Morelos:
+mapx %>% filter(Entidad == "Morelos") %>% 
+  ggplot(aes(fill = Valor)) + 
+  geom_sf() + 
+  scale_fill_gradientn(colors = 
+                         # c("red", "yellow", "green", "blue"))+
+                         # RColorBrewer::brewer.pal(name = "YlOrRd", n = 6)) +
+                          wesanderson::wes_palettes$Zissou1) + 
+  labs(title = "Índice de Desarrollo Humano", 
+       subtitle = "Año: 2015", 
+       caption = "Fuente: Informe de Desarrollo Humano Municipal 2010-2015\nElaborado por: Marvin Ivan Trejo Mendez") + 
+  theme_void() + 
+  theme(axis.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5, 
+                                  face="bold"), 
+        plot.subtitle = element_text(hjust = 0.5, 
+                                     color="darkgrey", 
+                                     face="bold"),
+        plot.caption = element_text(size=8, 
+                                    color="darkgrey", 
+                                    face="bold"),
+        legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10, 
+                               barheight = 0.5, 
+                               title.position = "top", 
+                               title.hjust = 0.5))
+```
+
+# Sesión 07
+
+```{r, warning=FALSE, message=FALSE}
+# Librerias:
+pacman::p_load(sf, tidyverse, viridis, wesanderson, ghibli, ggthemes, scales, ggimage)
+
+# Polígono de los estados: 
+shp_ent <- st_read("https://raw.githubusercontent.com/JuveCampos/Shapes_Resiliencia_CDMX_CIDE/master/geojsons/Division%20Politica/DivisionEstatal.geojson")
+
+# Datos del PREP: 
+prep <- read_csv("Datos/S07/prep_municipal.csv")  %>% 
+  mutate(CVE_INEGI = str_pad(CVE_INEGI, 
+                             width = 5, 
+                             side = "left", 
+                             pad = "0"))
+
+shp <- st_read("Datos/S07/municipios_2022.geojson")  %>% 
+  mutate(CVEGEO = str_pad(CVEGEO, 
+                          width = 5, 
+                          side = "left", 
+                          pad = "0"))
+
+# Unimos los datos del PREP y los polígonos de los estados
+mapx <- left_join(shp,prep, by = c("CVEGEO" = "CVE_INEGI"))
+```
+
+## Ejercicio 1. Participación electoral a nivel municipal
+
+```{r, warning=FALSE, fig.width=30, fig.height=25}
+# Para el mapa 
+plt_mun <- mapx %>%
+  ggplot(aes(fill = porcentaje_participacion)) + 
+  geom_sf(color = "transparent") + 
+  geom_sf(data = shp_ent, fill = NA, linewidth = 0.5) + 
+    scale_fill_gradientn(colors =
+                           ghibli_palette("MarnieMedium2", direction=-1),
+                         breaks = seq(0, 100, 20), 
+                         labels = comma_format(suffix = "%")) + 
+  scale_x_continuous(expand = expansion(c(0.2, 0.2))) + 
+  labs(title = "Participación a nivel municipal", 
+       subtitle = "Elección presidencial 2024", 
+       caption = "\n\n\nFuente: Elaboración propia con datos del PREP, 2024\nElaborado por: Marvin Ivan Trejo Mendez", 
+       fill = "Porcentaje de participación: ") + 
+  theme_minimal() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(size = 30, face = "bold", 
+                                  family = "Arial", 
+                                  color = "#44A57CFF"), 
+        plot.subtitle = element_text(size = 25), 
+        plot.caption = element_text(size = 15, hjust = 0, color = "white"), 
+        legend.title = element_text(size = 20), 
+        legend.text = element_text(size = 18), 
+        axis.text = element_blank(), 
+        panel.grid = element_blank(), 
+        plot.margin = margin(t = 3.5, 
+                             r = 0, 
+                             b = 0.8, 
+                             l = 0, 
+                             unit = "cm")) + 
+  guides(fill = guide_colorbar(title.position = "top", 
+                               barwidth = 40, 
+                               barheight = 1, 
+                               title.hjust = 0.5))
+
+# Con la función ggbackground podemos utilizar una plantilla como imagen de fondo 
+plt2_mun <- ggimage::ggbackground(plt_mun, "Datos/S07/plantilla.pdf")
+plt2_mun
+ggsave("Mapas/01_mapa_participacion.png", 
+       height = 10, 
+       width = 12)
+```
+
+## Ejercicio 2. Coalición ganadora por municipio
+
+```{r, warning=FALSE, fig.width=30, fig.height=25}
+# La función unique nos devuelve los valores únicos de un vector o la columna de un data frame. A continuación lo utilizamos para conocer las coaliciones
+unique(mapx$coalicion_ganadora)
+
+plt_gana <- mapx %>%
+  ggplot(aes(fill = coalicion_ganadora)) + 
+  geom_sf(color = "transparent") + 
+  geom_sf(data = shp_ent, fill = NA, linewidth = 0.5) + 
+  scale_fill_manual(values = c("FyCXM" = "#040b6e", 
+                               "SHH" = "#691205", 
+                               "MC" = "orange")) + 
+  scale_x_continuous(expand = expansion(c(0.2, 0.2))) + 
+  labs(title = "Coalición ganadora por municipio", 
+       subtitle = "Elección presidencial 2024", 
+       caption = "\n\n\nFuente: Elaboración propia con datos del PREP, 2024\nElaborado por: Marvin Ivan Trejo Mendez", 
+       fill = "Coalición: ") + 
+  theme_minimal() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(size = 30, face = "bold", 
+                                  family = "Arial", 
+                                  color = "#44A57CFF"), 
+        plot.subtitle = element_text(size = 25), 
+        plot.caption = element_text(size = 15, hjust = 0, color = "white"), 
+        legend.title = element_text(size = 20), 
+        legend.text = element_text(size = 18), 
+        axis.text = element_blank(), 
+        panel.grid = element_blank(), 
+        plot.margin = margin(t = 3.5, 
+                             r = 0, 
+                             b = 0.8, 
+                             l = 0, 
+                             unit = "cm")) + 
+  guides(fill = guide_legend(title.position = "top", 
+                               title.hjust = 0.5))
+
+plt2_gana <- ggimage::ggbackground(plt_gana, "Datos/S07/plantilla.pdf")
+plt2_gana
+ggsave("Mapas/02_mapa_coalicion_ganadora.png", 
+       height = 10, 
+       width = 12)
+```
+
+## Ejercicio 3. Participación por niveles
+
+```{r, warning=FALSE, fig.width=30, fig.height=25}
+# Con la función quantile obtenemos cuantiles de acuerdo con una variable de interés. En este caso utilizamos porcentaje de participación e indicamos tres valores que corresponden a 1/3 del total de datos.
+quantile(mapx$porcentaje_participacion, c(0.33, 0.66, 1), na.rm = T)
+
+#Con la información de los cuantiles crearemos tres grupos, categorizados en baja, media y alta participación electoral
+
+
+
+plt_nivel <- mapx %>%
+  mutate(grupo_participacion = case_when(
+   porcentaje_participacion < 58.55 ~ "Baja (menor a 58.6)",
+   between(porcentaje_participacion, 58.55, 67.81) ~ "Media (entre 58.6 y 67.8)",
+   porcentaje_participacion > 67.81 ~ "Alta (mayor a 67.8)")) %>% 
+  ggplot(aes(fill = grupo_participacion)) + 
+  geom_sf(color = "transparent") + 
+  geom_sf(data = shp_ent, fill = NA, linewidth = 0.5) + 
+  scale_fill_manual(values = c("Baja (menor a 58.6)" = "#E75B64FF", 
+                                "Media (entre 58.6 y 67.8)" = "#D8AF39FF", 
+                                "Alta (mayor a 67.8)" = "#278B9AFF")) + 
+  scale_x_continuous(expand = expansion(c(0.2, 0.2))) + 
+  labs(title = "Nivel de participación por municipio", 
+       subtitle = "Elección presidencial 2024", 
+       caption = "\n\n\nFuente: Elaboración propia con datos del PREP 2024\nElaborado por: Marvin Ivan Trejo Mendez", 
+       fill = "Participación\n(porcentaje)") + 
+  theme_minimal() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(size = 30, face = "bold", 
+                                  family = "Arial", 
+                                  color = "#44A57CFF"), 
+        plot.subtitle = element_text(size = 25), 
+        plot.caption = element_text(size = 15, hjust = 0, color = "white"), 
+        legend.title = element_text(size = 20, face = "bold"), 
+        legend.text = element_text(size = 18), 
+        axis.text = element_blank(), 
+        panel.grid = element_blank(), 
+        plot.margin = margin(t = 3.5, 
+                             r = 0, 
+                             b = 0.8, 
+                             l = 0, 
+                             unit = "cm")) + 
+  guides(fill = guide_legend(title.position = "top", 
+                               title.hjust = 0.5))
+
+plt2_nivel <- ggimage::ggbackground(plt_nivel, "Datos/S07/plantilla.pdf")
+plt2_nivel
+ggsave("Mapas/03_mapa_grupos_participacion.png", 
+       height = 10, 
+       width = 12)
+```
+
+# Sesión 08
+
+## Funciones en R
+
+Las funciones son objetos de R que realizan cálculos de manera estructurada con cierto fin o propósito. Se componen de cuatro elementos:
+
+1.  *Argumento:* controla la manera en que se llama a la función.
+
+2.  *Cuerpo de la función:* código dentro de la función
+
+3.  *Nombre de la función*
+
+4.  *Ambiente o estructura:* manera en que la función encuentra los elementos necesarios para funcionar.
+
+```{r,eval=FALSE, warning=FALSE}
+nomb_func<-funcion(argumento) {
+  # cuerpo de la función
+  ...orden_1...
+  ...orden_2...
+  ...orden_3...
+}
+```
+
+## Bucles
+
+```{r, warning=FALSE}
+# # Sintaxis del bucle for
+# for (variable in secuencia) {
+#   # Código a ejecutar en cada iteración 
+# }
+
+# Bucle para imprimir números del 1 al 5
+for (i in 1:5){
+  print(i)
+}
+```
+
+## Ejercicio 1. Función redondear
+
+La siguiente función toma como argumento un número "x" y un número "n" para realizar lo siguiente:
+
+-   Redondear el número "x" a "n" decimales.
+
+-   Si al redondear el número queda con menos decimales que "n", rellenar con ceros
+
+-   Colocar coma como separador de miles.
+
+```{r, warning=FALSE}
+x = 1234556.000001
+n = 4
+
+nb <- function(x, n){
+  round(x = x, digits = n) %>% 
+    format(nsmall = n) %>% 
+    prettyNum(big.mark = ",")
+}
+
+# La siguiente función quita la notación científica
+options(scipen = 999)
+
+nb(x = 100000, n = 2)
+nb(x = 100, n = 1)
+```
+
+## Ejercicio 2. Función para generar mapas
+
+Este ejercicio se realiza con los datos de la sesión 07.
+
+```{r, warning=FALSE}
+sel_edo = 32
+
+gen_coal_ganadora <- function(sel_edo){
+  
+mapx2 <- mapx %>% 
+  filter(cve_ent == sel_edo)
+
+shp_ent2 <- shp_ent %>% 
+  filter(as.numeric(CVE_EDO) == sel_edo)
+
+nombre_entidad <- mapx2$nom_ent %>% unique() %>% str_to_sentence()
+
+f_plt <- mapx2 %>%
+  ggplot(aes(fill = coalicion_ganadora)) + 
+  geom_sf(color = "transparent") + 
+  geom_sf(data = shp_ent2, fill = NA, linewidth = 0.5) +
+  scale_fill_manual(values = c("FyCXM" = "#040b6e", 
+                               "SHH" = "#691205", 
+                               "MC" = "orange")) + 
+  scale_x_continuous(expand = expansion(c(0.2, 0.2))) +
+  labs(title = str_c("Coalición ganadora"," - ", nombre_entidad), 
+       subtitle = "Elección presidencial 2024", 
+       caption = "\n\n\nFuente: Elaboración propia con datos del PREP 2024\nElaborado por: Marvin Ivan Trejo Mendez", 
+       fill = "Coalición: ") + 
+  theme_minimal() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(size = 30, face = "bold", 
+                                  family = "Arial", 
+                                  color = "#44A57CFF"), 
+        plot.subtitle = element_text(size = 25, color="darkgrey", face="bold"), 
+        plot.caption = element_text(size = 15, hjust = 0, color = "white"), 
+        legend.title = element_text(size = 20), 
+        legend.text = element_text(size = 18), 
+        axis.text = element_blank(), 
+        panel.grid = element_blank(), 
+        plot.margin = margin(t = 3.5, 
+                             r = 2, 
+                             b = 0, 
+                             l = 2, 
+                             unit = "cm")) + 
+  guides(fill = guide_legend(title.position = "top", 
+                             title.hjust = 0.5))
+f_plt
+
+f_plt2 <- ggimage::ggbackground(f_plt, "Datos/S08/plantilla.pdf")
+ggsave(str_c("Mapas/02_mapa_coalicion_ganadora","_",sel_edo,".png"),
+       height = 10, 
+       width = 12)
+}
+
+gen_coal_ganadora(sel_edo = 32)
+
+for (estado_para_mapa in 1:2){
+  gen_coal_ganadora(sel_edo = estado_para_mapa)
+  print(str_c("Mapa ", estado_para_mapa, "/32 generado n_n"))
+}
+```
+
+## Leaflet
+
+Es una librería de Javascript que nos permite crear mapas interactivos utilizando la sintaxis de R. La función `leaflet::leaflet()` es la función que recibe el objeto sf para hacer el mapa y a la cual se van añadiendo las distintas opciones o geometrías. Algunas de las funciones de la librería son:
+
+Leaflet maneja distintos tipos de capas:
+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+| [Elemento]{.smallcaps}                                                                                                                                           | [Funciones]{.smallcaps}                                                                                                     |
++==================================================================================================================================================================+=============================================================================================================================+
+| **Mapa base (tiles):** imagenes georeferenciadas que dan contexto sobre el lugar donde se encuentran nuestras geometrías.                                        | -   `addTiles()`: agrega un mapa base default al mapa que estamos elaborando. [Leaflet trabaja con el crs=4326]{.underline} |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  | -   `addProviderTiles("nombre_mapabase")`: agrega un mapa base distinto al default.                                         |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+| **Capas de geometrías:** geometrías almacenadas en los objetos a partir de los cuales se construyen los mapas.                                                   | -   `addPolygon()`                                                                                                          |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  | -   `addPolylines()`                                                                                                        |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  | -   `addCircleMaker()`                                                                                                      |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  | -   `addMarker()`                                                                                                           |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  | -   `addRasterImage()`                                                                                                      |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+| **Controles:** elementos de la interfaz de usuario que controlan la interacción del usuario con la información del mapa.                                         |                                                                                                                             |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+| **Leyendas:** elementos del mapa que informan acerca de la paleta de colores utilizada.                                                                          | -   `addLegend()` permite construir la leyenda del mapa. Recibe como argumentos                                             |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  |     -   Paleta de colores                                                                                                   |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  |     -   Dominio o valores a los que se asocia un color                                                                      |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  |     -   Posición de la leyenda                                                                                              |
+|                                                                                                                                                                  |                                                                                                                             |
+|                                                                                                                                                                  |     -   Título de la leyenda                                                                                                |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+| **Tooltips o labels:** elementos de la interfaz de usuario que se despliegan como cajas de texto informativo al pasar el cursor sobre algún elemento de interés. |                                                                                                                             |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+| **Popups:** elementos de la interfaz de usuario que despliegan información cuando el usuario realiza una acción particular.                                      |                                                                                                                             |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------+
+
+## Ejercicio 3. Mapa en leaflet
+
+Para este ejercicio utilizaremos los datos de la sesión 07
+
+```{r, warning=FALSE}
+library(leaflet)
+etiquetas_mpios <- str_c(mapx$CVEGEO, " - ", 
+                         mapx$NOMGEO, ", ",
+                         mapx$nom_ent)
+
+# El popup se construye como una cadena de texto con formato html
+popup_mapa <- str_c("<b>Municipio: </b>",mapx$NOMGEO, ", ", mapx$nom_ent, 
+                    "<br>",
+                    "<b>Coalición ganadora: </b>",mapx$coalicion_ganadora, 
+                    "<br>",
+                    "<b>Porcentaje de participación: </b>", 
+                    round(mapx$porcentaje_participacion, 2), "%<br>",
+                    "<b>Votos Claudia:</b> ", mapx$votos_cs, "<br>",
+                    "<b>Votos Xóchitl:</b> ", mapx$votos_xochitl, "<br>",
+                    "<b>Votos Máynez:</b> ", mapx$votos_jam)
+
+
+# La paleta de colores se construye con dos argumentos: vector de colores y vector de dominio o valores a los que se asigna un color
+unique(mapx$coalicion_ganadora)
+paleta_coaliciones <- colorFactor(palette = c("blue","orange","brown"), 
+                                  domain = c("FyCXM","MC","SHH"))
+
+#Se utiliza la función colorFactor() porque el dominio tiene valores categóricos. En otros casos se utiliza:
+#   colorNUmeric() para dominio con números continuos y escala continua.
+#   colorBin() para dominio con números continuos y escala discreta.
+
+
+mapa_interactivo <- leaflet() %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(data = mapx, 
+              weight = 0.8, 
+              color = "black", 
+              fillColor = paleta_coaliciones(mapx$coalicion_ganadora), 
+              opacity = 1, 
+              label = etiquetas_mpios,
+              popup = popup_mapa,
+              fillOpacity = 0.7, 
+              highlightOptions =
+                highlightOptions(color = "green",
+                                 weight = 5, 
+                                 bringToFront = F,
+                                 opacity = 1)) %>% 
+  addPolygons(data = shp_ent, 
+              fill = NA, 
+              opacity = 1,
+              color = "white", 
+              weight = 2) %>% 
+  addLegend(position = "bottomright", 
+            pal = paleta_coaliciones, 
+            values = mapx$coalicion_ganadora, 
+            title = "Coalición ganadora")
+
+mapa_interactivo
+
+htmlwidgets::saveWidget(mapa_interactivo, "mapa_pagina.html")
+```
+
+# Ejercicio final
+
+Librerías utilizadas:
+
+```{r, eval=FALSE, warning=FALSE}
+library(tidyverse)
+library(sf)
+library(leaflet)
+library(viridis)
+library(ghibli)
+```
+
+Para este ejercicio utilizaremos la base [**Subsidios directos a la población, por municipio de Cuenta Pública**]{.underline} del Portal de Transparencia Pública, disponible en:
+
+<https://www.transparenciapresupuestaria.gob.mx/work/models/PTP/DatosAbiertos/Entidades_Federativas/Subsidios_CP2023.zip>
+
+Esta base cuenta con información del presupuesto ejercido por programa social a nivel municipal.
+
+```{r, warning=FALSE, message=FALSE}
+# Cargamos la base de subsidios y hacemos las modificaciones al formato para crear una variable ID compatible con los archivos geojson
+
+subsidios_cp23<-read.csv("Datos/Subsidios_CP23.csv", 
+                         fileEncoding = "ISO-8859-1") %>% 
+  mutate(ID_ENTIDAD_FEDERATIVA = str_pad(ID_ENTIDAD_FEDERATIVA,
+                                         width = 2,
+                                         side = "left",
+                                         pad = "0")) %>% 
+  mutate(ID_MUNICIPIO = str_pad(ID_MUNICIPIO,
+                                         width = 3,
+                                         side = "left",
+                                         pad = "0")) %>% 
+  mutate(idgeo = str_c(ID_ENTIDAD_FEDERATIVA,ID_MUNICIPIO)) %>% 
+  mutate(mod = substr(MODALIDAD_PP,1,1))
+
+sub_cp23 <- aggregate(subsidios_cp23$MONTO_EJERCIDO,
+                      list(subsidios_cp23$idgeo), sum)
+
+# A continuación cargamos la información de polígono de estados y municipios: 
+
+# Polígono de estados
+shp_ent <- st_read("https://raw.githubusercontent.com/JuveCampos/Shapes_Resiliencia_CDMX_CIDE/master/geojsons/Division%20Politica/DivisionEstatal.geojson")
+
+# Polígono de municipios
+shp <- st_read("Datos/S07/municipios_2022.geojson")  %>% 
+  mutate(CVEGEO = str_pad(CVEGEO, 
+                          width = 5, 
+                          side = "left", 
+                          pad = "0"))
+
+# Por último, unimos los datos de presupuesto y los polígonos de municipios
+map_subsidios <- left_join(shp,sub_cp23, by = c("CVEGEO" = "Group.1")) %>% 
+  mutate(x = x/1000000) 
+```
+
+Con la base resultante podemos elaborar un mapa del presupuesto ejercido por programa social a nivel municipal
+
+```{r, warning=FALSE}
+etq_mpios <- str_c(map_subsidios$CVEGEO, " - ",
+                   map_subsidios$NOMGEO)
+
+# El popup se construye como una cadena de texto con formato html
+popup_mapa <- str_c("<b>Municipio: </b>",map_subsidios$NOMGEO,
+                    "<br>",
+                    "<b>Presupuesto de desarrollo<br>social ejercido:</b>",
+                    "<br>",
+                    "$", format(map_subsidios$x, 
+                                digits= 2, scientific= F, big.mark = ","), 
+                    " Millones de Pesos")
+
+
+# La paleta de colores se construye con dos argumentos: vector de colores y vector de dominio o valores a los que se asigna un color
+paleta_presupuesto <- colorNumeric(
+  palette = viridis(5, direction= 1, option = "A"),
+  domain = map_subsidios$x)
+
+
+mapa_presupuesto <- leaflet() %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(data = map_subsidios, 
+              weight = 0.8, 
+              color = "black", 
+              fillColor = paleta_presupuesto(map_subsidios$x),
+                # map_subsidios$nivel_pres), 
+              opacity = 1, 
+              label = etq_mpios,
+              popup = popup_mapa,
+              fillOpacity = 0.7, 
+              highlightOptions =
+                highlightOptions(color = "green",
+                                 weight = 5, 
+                                 bringToFront = F,
+                                 opacity = 1)) %>% 
+  addPolygons(data = shp_ent, 
+              fill = NA, 
+              opacity = 1,
+              color = "white", 
+              weight = 2) %>% 
+  addLegend(position = "bottomleft", 
+            pal = paleta_presupuesto, 
+            values = map_subsidios$x, 
+            title = "<center>Presupuesto de desarrollo<br>social ejercido<br>
+            (millones de pesos)</center>")
+
+mapa_presupuesto
+
+htmlwidgets::saveWidget(mapa_presupuesto, "mapa_presupuesto.html")
+```
