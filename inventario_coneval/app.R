@@ -1,39 +1,38 @@
-library(shiny)
-library(bslib)
-library(bsicons)
 
 # source("contenido_app.R")
 
 # UI ####
-ui <- page_sidebar(
-  theme = bslib::bs_theme(bootswatch = "flatly"),
-  title =  fluidRow(
-    column(12,
-           tags$img(src = "https://upload.wikimedia.org/wikipedia/commons/5/5b/Logo_CONEVAL.svg", 
-                    style = "height:10vh; max-height:10vh;"),
-           column(12, 
-                  HTML("<h1>Programas y acciones federales de desarrollo social</h1>"),
-                  HTML("<h2>Información histórica 2009-2024</h2>"))
-           )
-  ),
-  footer = tags$div(style = "font-size: 10px; padding-right:20px",
-                    "Curso de visualización de información con R para la evaluación de políticas públicas 2024. Evaluación final.",
-                    br(),"Elaborado por Marvin Ivan Trejo Mendez"), 
-  sidebar = sidebar(
-    uiOutput("selCiclo"),
-    uiOutput("selRamo"),
-    uiOutput("selPP")),
-  uiOutput("titulo_dg"),
-  uiOutput("subtitulo_dg"),
-  layout_column_wrap(
-    width = 1/3,
-    heights_equal = "row",
-    datosgrales_card, poblacion_card, presupuesto_card) 
-    # layout_column_wrap(
-    #   width = 1,
-    #   heights_equal = "row",
-    #   poblacion_card, presupuesto_card))
-)
+
+ ui <- page_sidebar(
+   theme = bslib::bs_theme(bootswatch = "flatly"),
+   title =  fluidRow(
+     column(3,
+            tags$img(src = "https://upload.wikimedia.org/wikipedia/commons/5/5b/Logo_CONEVAL.svg",
+                     style = "height:10vh; max-height:10vh;")
+            ),
+     column(9,
+            HTML("<h2 style = 'margin:0;'>Programas y acciones federales de desarrollo social</h3>"),
+            HTML("<h3 style = 'margin-top: 5px;'>Información histórica 2009-2022</h3>"))
+            ),
+
+   sidebar = sidebar(
+     uiOutput("selCiclo"),
+     uiOutput("selRamo"),
+     uiOutput("selPP")),
+   
+   fluidRow(column(5, uiOutput("titulo_dg"), uiOutput("subtitulo_dg")),
+            column(7, header_card)),
+ 
+   fluidRow(
+     column(5, datosgrales_card, evolucion_card), 
+     column(7, poblacion_card, presupuesto_card)),
+
+   fluidRow(
+     column(12,
+            tags$div(style = "font-size: 10px; padding-right:20px",
+                     "Elaborado por Marvin Ivan Trejo Mendez"))
+   )
+ )
 
 
 # Server ####
@@ -52,7 +51,7 @@ server <- function(input, output, session) {
     req(input$selCiclo)
     selectizeInput(inputId = "selRamo",
                 label = "Seleccione la dependencia:",
-                choices = ramos_disp(input$selCiclo))
+                choices = ent_disp(input$selCiclo))
   })
   
   output$selPP <- renderUI({
@@ -68,16 +67,16 @@ server <- function(input, output, session) {
     h2(paste(modcve(input$selCiclo, input$selRamo,input$selPP), 
              " ", 
              nombre(input$selCiclo, input$selRamo,input$selPP)),
-      style = "color: #2c3e50; font-weight: bold; text-align: center;")
+      style = "color: #2c3e50; font-weight: bold; text-align: left;")
   })
   
   output$subtitulo_dg <- renderUI({
     req(input$selCiclo, input$selRamo,input$selPP)
     h4(ramo(input$selCiclo, input$selRamo,input$selPP),
-       style = "color: #A9A9A9; font-weight: bold; text-align: center;")
+       style = "color: #A9A9A9; font-weight: bold; text-align: left;")
   })
 
-  output$ainicio_box<-renderText({
+  output$ainicio<-renderText({
     req(input$selCiclo, input$selRamo,input$selPP)
     ainicio(input$selCiclo, input$selRamo,input$selPP)
   })
@@ -128,8 +127,17 @@ server <- function(input, output, session) {
     gen_eval(eval_anio, eval_titulo, eval_enlace)
   })
 
-  # normatividad
-  # norma_v
+  output$normatividad_p<-renderText({
+    req(input$selCiclo, input$selRamo,input$selPP)
+    normatividad(input$selCiclo, input$selRamo,input$selPP)
+  })
+  
+  output$normatividad_v<-renderText({
+    req(input$selCiclo, input$selRamo,input$selPP)
+    norma_v(input$selCiclo, input$selRamo,input$selPP)
+  })
+
+
 # Poblaciones ####
   output$umpp_ac<-renderText({
     req(input$selCiclo, input$selRamo,input$selPP)
@@ -165,13 +173,84 @@ server <- function(input, output, session) {
     req(input$selCiclo, input$selRamo, input$selPP)
     grafica_poblaciones(inv_fed, input$selCiclo, input$selRamo, input$selPP)
   })
+  
+  output$cobert <- renderText({
+    req(input$selCiclo, input$selRamo, input$selPP)
+    cobertura(input$selCiclo, input$selRamo,input$selPP)
+  })
+  
+  output$efic <- renderText({
+    req(input$selCiclo, input$selRamo, input$selPP)
+    eficiencia(input$selCiclo, input$selRamo,input$selPP)
+  })
 
 # Presupuesto ####  
   output$graf_pres <- renderPlot({
     req(input$selCiclo, input$selRamo, input$selPP)
     grafica_presupuesto(inv_fed, input$selCiclo, input$selRamo, input$selPP)
   })
+  
+  output$prop_pres <- renderText({
+    req(input$selCiclo, input$selRamo, input$selPP)
+    porcentaje_pres(input$selCiclo, input$selRamo, input$selPP)
+  })
+
+
+  output$pres_tab<- renderDT({
+    req(input$selCiclo, input$selRamo, input$selPP)
+    tabla_pres(input$selCiclo, input$selRamo, input$selPP)
+  })
+  
+  datos_pob <- reactive({
+    req(input$selCiclo, input$selRamo, input$selPP)
+    tabla_pob(input$selCiclo, input$selRamo, input$selPP)
+  })
+  
+  output$pob_tab<- renderDT({
+    df <- datos_pob()
+    if(is.null(df)) return(NULL)
+      
+    datatable(df,
+              options = list(pageLength = 50,
+                             searching = FALSE,
+                             language = list(
+                               # paginate = list(previous = "Anterior", next = "Siguiente"),
+                               info = "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                               infoEmpty = "Mostrando 0 a 0 de 0 registros",
+                               lengthMenu = "Mostar _MENU_ registros por página",
+                               loadingRecords = "Cargando...",
+                               emptyTable = "No hay datos disponibles"
+                               )
+              )
+    ) %>%
+      formatRound(columns = c("Población potencial", "Población objetivo", "Población atendida"),
+                  digits = 0, mark = ",") %>%
+      formatStyle(
+        columns = c("Población potencial", "Población objetivo", "Población atendida"),
+        backgroundColor = styleEqual(NA, "lightgray"),
+        color = styleEqual(NA, "gray"),
+        `text-align` = "center"
+        )
+  })
+  
+  output$evprog <- renderPlot({
+    req(input$selCiclo, input$selRamo, input$selPP)
+    gen_evoprog(input$selCiclo, input$selRamo, input$selPP)
+  })
+  
+  output$downloadPoblaciones <- downloadHandler(
+    filename = function() {
+      paste("poblaciones_", ".csv", sep = "")
+    },
+    content = function(file) {
+      write.csv(datos_pob(), file, row.names = FALSE)
+    }
+  )
+  
+
+  
 }
+
 
 # Run the application 
 shinyApp(ui = ui, server = server)
